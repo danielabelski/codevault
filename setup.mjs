@@ -415,9 +415,155 @@ if (!syncMode) {
   console.log(`  1. Open codevault.html in Chrome/Edge`);
   console.log(`  2. Click "Connect File" and select LOCK_CONFIG.json`);
   console.log(`  3. Toggle locks — changes auto-save`);
-  console.log(`  4. Copy CLAUDE_LOCK_RULES.md into your CLAUDE.md\n`);
+  console.log(`  4. Agent lock rules auto-generated — see below\n`);
 } else {
   console.log(`\nSync complete. Refresh the CodeVault dashboard to see new entries.\n`);
+}
+
+// ════════════════════════════════════════════
+// UNIVERSAL AI AGENT LOCK RULES GENERATOR
+// ════════════════════════════════════════════
+// Generates instruction files for every major AI coding agent
+// so they all respect LOCK_CONFIG.json — not just Claude.
+
+generateAgentLockRules();
+
+function generateAgentLockRules() {
+  const totalEntries = routes.length + apiRoutes.length + tables.length + serverActions.length;
+
+  // The core lock enforcement protocol — shared across all agents
+  const lockProtocol = `## CodeVault File Lock System
+
+This project uses CodeVault to control which files AI agents can modify. Before editing ANY file, you MUST check LOCK_CONFIG.json in the project root.
+
+### How It Works
+
+LOCK_CONFIG.json maps every route, server action, API endpoint, and database table to a three-layer lock state:
+
+- **UI layer** — Styling, CSS, component JSX structure, layout, HTML markup
+- **Logic layer** — Business rules, validation, calculations, state management
+- **Data layer** — Database queries, API calls, data transformations
+
+Each layer has one of three states:
+
+| State | What You Do |
+|-------|-------------|
+| **locked** | DO NOT MODIFY. Refuse the change. Tell the user what is locked. |
+| **caution** | ASK FIRST. Show the user what you plan to change and wait for explicit approval. |
+| **open** | PROCEED NORMALLY. You can modify this layer freely. |
+
+### Enforcement Rules
+
+1. Before every file edit, resolve the file path against LOCK_CONFIG.json:
+   - Check \`routes\`, \`serverActions\`, \`apiRoutes\` by matching the file path
+   - Check \`tables\` if modifying any database query
+   - Check \`directoryRules\` for glob pattern matches
+2. Determine which layer your change affects:
+   - Changing className, CSS, layout, JSX → **UI layer**
+   - Changing if/else, validation, handlers → **Logic layer**
+   - Changing database queries, API calls → **Data layer**
+3. If ANY affected layer is \`locked\`: REFUSE. Do not make the change.
+4. If ANY affected layer is \`caution\`: Describe the change and ask for confirmation.
+5. If ALL affected layers are \`open\`: Proceed normally.
+6. When an edit spans multiple layers, ALL must be open or caution.
+
+### Untracked Files
+
+If a file is NOT in LOCK_CONFIG.json, do NOT silently proceed. Instead:
+1. Add it to LOCK_CONFIG.json under the appropriate section (routes, serverActions, tables, apiRoutes)
+2. Set all layers to \`locked\` by default
+3. Then follow the normal lock check flow
+
+### Pending Unlock Requests
+
+When creating a plan that requires modifying locked files, write a \`_pendingUnlocks\` array to LOCK_CONFIG.json:
+\`\`\`json
+"_pendingUnlocks": [
+  {
+    "entry": "serverActions.sa-auth",
+    "layers": ["logic", "data"],
+    "reason": "Plan: Add OAuth2 support",
+    "agent": "your-agent-name",
+    "timestamp": "${new Date().toISOString()}"
+  }
+]
+\`\`\`
+The CodeVault dashboard will highlight these files for the user to unlock.
+
+### Current Stats
+
+This project has **${totalEntries} protected entries** across ${routes.length} routes, ${apiRoutes.length} API routes, ${tables.length} tables, and ${serverActions.length} server actions.
+`;
+
+  // Agent-specific wrappers
+  const agents = {
+    // Claude Code / Cowork
+    'CLAUDE_LOCK_RULES.md': {
+      content: `# CodeVault Lock Rules for Claude\n\n${lockProtocol}\n### Claude-Specific\n\n- Log all modifications to the \`_auditLog\` array in LOCK_CONFIG.json\n- Use the unlock-before-modify protocol: check → ask → log → unlock → modify → re-lock → log\n- Write pending unlock requests during plan mode\n`,
+      desc: 'Claude Code / Cowork'
+    },
+
+    // Cursor
+    '.cursor/rules/codevault.mdc': {
+      content: `---\ndescription: CodeVault file lock enforcement rules\nglobs: **/*\nalwaysApply: true\n---\n\n${lockProtocol}`,
+      desc: 'Cursor'
+    },
+
+    // Windsurf
+    '.windsurfrules': {
+      content: `${lockProtocol}`,
+      desc: 'Windsurf'
+    },
+
+    // GitHub Copilot
+    '.github/copilot-instructions.md': {
+      content: `# Copilot Instructions — CodeVault Lock Enforcement\n\n${lockProtocol}`,
+      desc: 'GitHub Copilot'
+    },
+
+    // Aider
+    '.aider/conventions.md': {
+      content: `# Aider Conventions — CodeVault Lock Enforcement\n\n${lockProtocol}`,
+      desc: 'Aider'
+    },
+
+    // Generic / catch-all
+    'AGENT_LOCK_RULES.md': {
+      content: `# CodeVault Lock Rules (Universal)\n\nThis file contains lock enforcement rules for any AI coding agent.\nCopy the relevant sections into your agent's instruction file.\n\n${lockProtocol}`,
+      desc: 'Generic (any agent)'
+    }
+  };
+
+  console.log('\n[CodeVault] Generating AI agent lock rules...');
+  let generated = 0;
+
+  for (const [filePath, agent] of Object.entries(agents)) {
+    const fullPath = path.join(cwd, filePath);
+    const dir = path.dirname(fullPath);
+
+    // Create directories if needed
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Only write if file doesn't exist or is a CodeVault-generated file
+    const exists = fs.existsSync(fullPath);
+    if (exists) {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      // Skip if it exists and wasn't generated by CodeVault (don't overwrite user content)
+      if (!content.includes('CodeVault') && !content.includes('LOCK_CONFIG')) {
+        console.log(`  ~ Skipped ${filePath} (exists, not CodeVault-generated)`);
+        continue;
+      }
+    }
+
+    fs.writeFileSync(fullPath, agent.content, 'utf-8');
+    console.log(`  + ${filePath} (${agent.desc})`);
+    generated++;
+  }
+
+  console.log(`  ${generated} agent instruction files generated.`);
+  console.log(`  Supported agents: Claude, Cursor, Windsurf, GitHub Copilot, Aider, Generic`);
 }
 
 // ════════════════════════════════════════════

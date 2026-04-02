@@ -1433,6 +1433,26 @@ function CodeVault() {
     try { localStorage.setItem('cv-audit-log', JSON.stringify(auditLog.slice(-500))); } catch(e) {}
   }, [auditLog]);
 
+  // Auto-clear pending unlock requests when files are unlocked
+  useEffect(() => {
+    if (pendingUnlocks.length === 0) return;
+    const remaining = pendingUnlocks.filter(p => {
+      const entryId = p.entry || '';
+      // Extract the node ID from "section.id" format
+      const nodeId = entryId.includes('.') ? entryId.split('.').slice(1).join('.') : entryId;
+      const entry = locks[nodeId];
+      if (!entry) return true; // keep if not found
+      const s = entry._default || { ui: 'locked', logic: 'locked', data: 'locked' };
+      // Check if the requested layers are now open
+      const requestedLayers = p.layers || ['ui', 'logic', 'data'];
+      const allOpen = requestedLayers.every(l => s[l] === 'open');
+      return !allOpen; // remove if all requested layers are open
+    });
+    if (remaining.length !== pendingUnlocks.length) {
+      setPendingUnlocks(remaining);
+    }
+  }, [locks, pendingUnlocks]);
+
   const allNodes = useMemo(() => [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS], []);
 
   const filteredNodes = useMemo(() => {
@@ -2010,6 +2030,13 @@ function CodeVault() {
               </div>
             )}
 
+            {currentView === 'grid' && pendingUnlocks.length > 0 && (
+              <div className="pending-banner">
+                {I.alert(16, '#F59E0B')}
+                <span><strong>{pendingUnlocks.length} file{pendingUnlocks.length !== 1 ? 's' : ''}</strong> pending unlock requests from AI agent{pendingUnlocks.some(p => p.agent) ? ` (${[...new Set(pendingUnlocks.map(p => p.agent))].join(', ')})` : ''}. Look for the glowing cards below.</span>
+                {pendingUnlocks[0]?.planId && <span style={{ fontSize: 11, opacity: 0.8 }}>Plan: {pendingUnlocks[0].planId}</span>}
+              </div>
+            )}
             {currentView === 'grid' && (
               <div className="grid">
                 {filteredNodes.map(node => (
