@@ -283,6 +283,28 @@ const GROUP_META = (() => {
     admin: '#F59E0B',
     api: '#EC4899',
     native: '#8B5CF6',
+    encryption: '#DC2626',
+    security: '#B91C1C',
+    stripe: '#635BFF',
+    ai: '#8B5CF6',
+    'ai-agents': '#A855F7',
+    compliance: '#059669',
+    consent: '#0891B2',
+    tiers: '#D97706',
+    types: '#6366F1',
+    hooks: '#2563EB',
+    notifications: '#7C3AED',
+    logging: '#64748B',
+    referrals: '#EA580C',
+    'admin-lib': '#CA8A04',
+    payments: '#635BFF',
+    middleware: '#6366F1',
+    database: '#059669',
+    'ui-components': '#EC4899',
+    email: '#7C3AED',
+    sms: '#0891B2',
+    analytics: '#F59E0B',
+    growth: '#EA580C',
   };
   const labelMap = {
     auth: 'Authentication',
@@ -291,6 +313,28 @@ const GROUP_META = (() => {
     admin: 'Admin Panel',
     api: 'API Routes',
     native: 'Native Shells',
+    encryption: 'Encryption',
+    security: 'Security',
+    stripe: 'Stripe',
+    ai: 'AI Core',
+    'ai-agents': 'AI Agents',
+    compliance: 'Compliance',
+    consent: 'Consent',
+    tiers: 'Tiers',
+    types: 'Type Definitions',
+    hooks: 'Hooks',
+    notifications: 'Notifications',
+    logging: 'Logging',
+    referrals: 'Referrals',
+    'admin-lib': 'Admin Library',
+    payments: 'Payments',
+    middleware: 'Middleware',
+    database: 'Database',
+    'ui-components': 'UI Components',
+    email: 'Email',
+    sms: 'SMS',
+    analytics: 'Analytics',
+    growth: 'Growth',
   };
 
   ROUTES.forEach(r => {
@@ -306,6 +350,14 @@ const GROUP_META = (() => {
       groups[a.group] = {
         label: labelMap[a.group] || a.group,
         color: colorMap[a.group] || '#6366F1'
+      };
+    }
+  });
+  SERVER_ACTIONS.forEach(s => {
+    if (s.group && !groups[s.group]) {
+      groups[s.group] = {
+        label: labelMap[s.group] || s.group,
+        color: colorMap[s.group] || '#6366F1'
       };
     }
   });
@@ -359,13 +411,24 @@ function getDescription(node) {
     data: `Part of the ${node.domain} domain.`
   };
 
-  if (isAction) return {
-    plain: `Server-side code file with ${(node.funcs || []).length} functions that handle business logic. This runs on the server, not in the browser.`,
-    impact: `Contains ${(node.lines || 0).toLocaleString()} lines of code. Changes could affect ${(node.tables || []).length} database tables.`,
-    ui: 'No direct UI — these are backend functions',
-    logic: (node.funcs || []).join(', '),
-    data: `Interacts with: ${(node.tables || []).join(', ')}`
-  };
+  if (isAction) {
+    const isLib = node.funcs.length === 1 && node.funcs[0] === '*';
+    const groupLabel = GROUP_META[node.group]?.label || node.group || 'library';
+    if (isLib) return {
+      plain: `${groupLabel} file at ${node.path}. Critical infrastructure — changes require careful review.`,
+      impact: `Part of the ${groupLabel} module. Modifications may affect multiple features across the app.`,
+      ui: `No direct UI — this is a ${groupLabel.toLowerCase()} file`,
+      logic: `Core ${groupLabel.toLowerCase()} logic and utilities`,
+      data: `Interacts with: ${(node.tables || []).join(', ') || 'internal module dependencies'}`
+    };
+    return {
+      plain: `Server-side code file with ${(node.funcs || []).length} functions that handle business logic. This runs on the server, not in the browser.`,
+      impact: `Contains ${(node.lines || 0).toLocaleString()} lines of code. Changes could affect ${(node.tables || []).length} database tables.`,
+      ui: 'No direct UI — these are backend functions',
+      logic: (node.funcs || []).join(', '),
+      data: `Interacts with: ${(node.tables || []).join(', ')}`
+    };
+  }
 
   if (node.type === 'api') return {
     plain: `API endpoint at /${node.path} that handles server requests. This processes data behind the scenes.`,
@@ -1099,6 +1162,7 @@ function AuditLogView({ auditLog, setAuditLog, allNodes, onNodeClick }) {
                 <th style={{ width: 60 }}>Layer</th>
                 <th style={{ width: 170 }}>Change</th>
                 <th style={{ width: 80 }}>Source</th>
+                <th>Reason</th>
                 <th style={{ width: 90 }}>Session</th>
               </tr>
             </thead>
@@ -1119,7 +1183,12 @@ function AuditLogView({ auditLog, setAuditLog, allNodes, onNodeClick }) {
                       <span className="audit-tag" style={{ background: stateBg(entry.to), color: stateColor(entry.to) }}>{entry.to}</span>
                     </span>
                   </td>
-                  <td style={{ fontSize: '11px', color: 'var(--text3)' }}>{entry.source}</td>
+                  <td style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                    {entry.targetType === 'file-audit' ?
+                      <span style={{ background: 'rgba(139,92,246,0.15)', color: '#A78BFA', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>Claude</span> :
+                      entry.source}
+                  </td>
+                  <td style={{ fontSize: '11px', color: 'var(--text3)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.reason || ''}>{entry.reason || '—'}</td>
                   <td style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'monospace' }}>{entry.session?.slice(0,10) || '—'}</td>
                 </tr>
               ))}
@@ -1323,6 +1392,7 @@ function CodeVault() {
     return true;
   });
   const fileHandleRef = useRef(null);
+  const fileAuditLog = useRef([]);
   const sessionId = useRef('s-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6));
   const initialLoad = useRef(false);
 
@@ -1397,7 +1467,8 @@ function CodeVault() {
       apiRoutes: {},
       directoryRules: [
         { pattern: 'src/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core source code' }
-      ]
+      ],
+      _auditLog: fileAuditLog.current || []
     };
 
     allNodes.forEach(n => {
@@ -1445,6 +1516,31 @@ function CodeVault() {
           }
         });
       });
+
+      // Read _auditLog from file and merge into dashboard audit log
+      if (cfg._auditLog && Array.isArray(cfg._auditLog)) {
+        fileAuditLog.current = cfg._auditLog;
+      }
+      if (cfg._auditLog && Array.isArray(cfg._auditLog) && cfg._auditLog.length > 0) {
+        setAuditLog(prev => {
+          const existingKeys = new Set(prev.map(e => e.timestamp + '|' + e.target + '|' + e.layer));
+          const newEntries = cfg._auditLog.map(e => ({
+            id: 'file-' + (e.timestamp || '') + '-' + (e.entry || ''),
+            timestamp: e.timestamp,
+            target: e.entry,
+            targetName: e.entry,
+            targetType: 'file-audit',
+            layer: (e.layers || []).join('+') || 'all',
+            from: Object.values(e.previousState || {})[0] || 'locked',
+            to: Object.values(e.newState || {})[0] || 'open',
+            source: e.session || 'claude',
+            reason: e.reason || '',
+            session: e.approvedBy || 'unknown'
+          })).filter(e => !existingKeys.has(e.timestamp + '|' + e.target + '|' + e.layer));
+          return [...prev, ...newEntries];
+        });
+      }
+
       return newLocks;
     } catch (e) {
       console.error('Failed to parse LOCK_CONFIG.json:', e);
@@ -1903,13 +1999,17 @@ function CodeVault() {
                       {node.name}
                     </div>
                     {node.path ? (
-                      <a href={`${envUrls[activeEnv]}/${cleanPath(node.path)}`} target="_blank" rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{ fontSize: '12px', color: 'var(--accent)', marginBottom: '8px', display: 'block', textDecoration: 'none' }}
-                        onMouseOver={e => e.target.style.textDecoration = 'underline'}
-                        onMouseOut={e => e.target.style.textDecoration = 'none'}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{activeEnv === 'staging' ? I.hardhat(11, 'var(--accent)') : I.globe(11, 'var(--accent)')} /{cleanPath(node.path)}</span>
-                      </a>
+                      node.funcs && node.path.startsWith('src/') ? (
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px' }}>{node.path}</div>
+                      ) : (
+                        <a href={`${envUrls[activeEnv]}/${cleanPath(node.path)}`} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{ fontSize: '12px', color: 'var(--accent)', marginBottom: '8px', display: 'block', textDecoration: 'none' }}
+                          onMouseOver={e => e.target.style.textDecoration = 'underline'}
+                          onMouseOut={e => e.target.style.textDecoration = 'none'}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{activeEnv === 'staging' ? I.hardhat(11, 'var(--accent)') : I.globe(11, 'var(--accent)')} /{cleanPath(node.path)}</span>
+                        </a>
+                      )
                     ) : (
                       <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>{node.id}</div>
                     )}
@@ -1931,7 +2031,14 @@ function CodeVault() {
                           {PLATFORM_DEFS[node.platform]?.icon} {PLATFORM_DEFS[node.platform]?.label}
                         </span>
                       )}
-                      {node.group && <span className="card-badge">{node.group}</span>}
+                      {node.funcs && node.lines && (
+                        <span className="meta-tag" style={{ color: 'var(--action)' }}>{node.lines} lines</span>
+                      )}
+                      {node.group && GROUP_META[node.group] ? (
+                        <span className="card-badge" style={{ color: GROUP_META[node.group].color, borderColor: GROUP_META[node.group].color + '40' }}>{GROUP_META[node.group].label}</span>
+                      ) : node.group ? (
+                        <span className="card-badge">{node.group}</span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
