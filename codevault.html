@@ -1,0 +1,2162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CodeVault v1.0 — Universal Lock Control System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="codevault-data.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* Dark theme (default) */
+:root, [data-theme="dark"] {
+--bg:#080E1A;--panel:#0F172A;--panel2:#131d32;--border:#1E293B;--border2:#2a3a52;
+--text:#F1F5F9;--text2:#94A3B8;--text3:#64748B;
+--accent:#5b9aa0;--accent2:#7eb8c4;--accentDk:#3d7a80;
+--locked:#DC2626;--lockedBg:rgba(220,38,38,.12);--lockedBorder:rgba(220,38,38,.3);
+--caution:#F59E0B;--cautionBg:rgba(245,158,11,.12);--cautionBorder:rgba(245,158,11,.3);
+--open:#16A34A;--openBg:rgba(22,163,74,.12);--openBorder:rgba(22,163,74,.3);
+--route:#3B82F6;--table:#A855F7;--action:#F97316;--component:#06B6D4;--api:#EC4899;
+--shadow:0 4px 24px rgba(0,0,0,.4);
+--graphBg:#080E1A;--graphLabel:#94A3B8;
+--overlayBg:rgba(0,0,0,.5);
+}
+/* Light theme */
+[data-theme="light"] {
+--bg:#F8FAFC;--panel:#FFFFFF;--panel2:#F1F5F9;--border:#E2E8F0;--border2:#CBD5E1;
+--text:#0F172A;--text2:#475569;--text3:#64748B;
+--accent:#4a8a90;--accent2:#5ea0ac;--accentDk:#3d7a80;
+--locked:#DC2626;--lockedBg:rgba(220,38,38,.08);--lockedBorder:rgba(220,38,38,.25);
+--caution:#D97706;--cautionBg:rgba(217,119,6,.08);--cautionBorder:rgba(217,119,6,.25);
+--open:#15803D;--openBg:rgba(21,128,61,.08);--openBorder:rgba(21,128,61,.25);
+--route:#2563EB;--table:#9333EA;--action:#EA580C;--component:#0891B2;--api:#DB2777;
+--shadow:0 4px 24px rgba(0,0,0,.08);
+--graphBg:#F8FAFC;--graphLabel:#475569;
+--overlayBg:rgba(0,0,0,.3);
+}
+html,body,#app{width:100%;height:100%;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}
+body{background:var(--bg);color:var(--text)}
+button{cursor:pointer;border:none;background:none;font-size:inherit;font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;background:inherit}
+select.input{appearance:none;-webkit-appearance:none;background:var(--panel2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;padding-right:26px;cursor:pointer}
+select.input:focus{outline:none;border-color:var(--accent)}
+select.input option{background:var(--panel);color:var(--text);padding:6px}
+/* LAYOUT */
+.root{display:flex;width:100%;height:100%;overflow:hidden}
+.sidebar{width:200px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.header{padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:600;font-size:14px}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{background:var(--panel);border-bottom:1px solid var(--border);padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.view-tabs{display:flex;gap:4px;align-items:center;margin-right:auto}
+.tab-btn{padding:6px 12px;border:1px solid transparent;border-radius:6px;background:var(--panel2);color:var(--text2);font-size:13px;transition:all 150ms}
+.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab-btn:hover:not(.active){background:var(--panel)}
+.control-group{display:flex;gap:8px;align-items:center}
+.control-group label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px}
+.control-group input[type="checkbox"]{width:16px;height:16px;cursor:pointer}
+.btn{padding:6px 12px;background:var(--accent);color:#fff;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all 150ms;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--accentDk)}
+.btn.secondary{background:var(--panel2);color:var(--text2);border:1px solid var(--border)}
+.btn.secondary:hover{border-color:var(--accent);color:var(--accent);background:var(--panel)}
+.input{padding:7px 10px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);outline:none;transition:border-color .15s}
+.input:focus{border-color:var(--accent)}
+.input::placeholder{color:var(--text3)}
+.content{flex:1;display:flex;overflow:hidden}
+.list-panel{width:250px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.search-box{padding:12px;border-bottom:1px solid var(--border)}
+.search-box input{width:100%}
+.node-list{flex:1;overflow-y:auto;padding:0}
+.node-item{padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:all 150ms;font-size:13px;display:flex;align-items:center;gap:6px}
+.node-item:hover{background:var(--panel2)}
+.node-item.selected{background:var(--accent);color:#fff}
+.node-item-icon{width:16px;height:16px;border-radius:3px;flex-shrink:0}
+.node-item-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-item-lock{width:14px;height:14px;font-size:10px;display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;font-weight:bold}
+.view-container{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.view-content{flex:1;overflow:auto}
+/* GRID VIEW */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:16px;overflow-y:auto}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;transition:all 150ms;cursor:pointer}
+.card:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.card-title{font-weight:600;font-size:14px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.card-badge{display:inline-block;padding:2px 8px;background:var(--panel2);border-radius:4px;font-size:11px;color:var(--text2)}
+.card-meta{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.lock-indicator{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:4px 8px;border-radius:4px}
+.lock-indicator.locked{background:var(--lockedBg);color:var(--locked);border:1px solid var(--lockedBorder)}
+.lock-indicator.caution{background:var(--cautionBg);color:var(--caution);border:1px solid var(--cautionBorder)}
+.lock-indicator.open{background:var(--openBg);color:var(--open);border:1px solid var(--openBorder)}
+/* DETAIL PANEL */
+.detail-panel{width:400px;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.detail-header{padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.detail-title{font-weight:600;font-size:16px}
+.detail-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2)}
+.detail-body{flex:1;padding:16px;overflow-y:auto}
+.detail-section{margin-bottom:20px}
+.detail-section-title{font-weight:600;font-size:13px;color:var(--text2);text-transform:uppercase;margin-bottom:8px}
+.detail-section-content{font-size:13px;line-height:1.5;color:var(--text)}
+.lock-controls{display:flex;gap:6px;margin-bottom:12px}
+.lock-btn{flex:1;padding:8px;border:2px solid;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all 150ms}
+.lock-btn.locked{border-color:var(--locked);background:var(--lockedBg);color:var(--locked)}
+.lock-btn.caution{border-color:var(--caution);background:var(--cautionBg);color:var(--caution)}
+.lock-btn.open{border-color:var(--open);background:var(--openBg);color:var(--open)}
+.lock-btn:hover{filter:brightness(1.2)}
+.layer-lock{margin-bottom:8px;padding:10px;background:var(--panel2);border-radius:6px;border:1px solid var(--border)}
+.layer-lock-name{font-weight:600;font-size:12px;margin-bottom:6px;color:var(--text2)}
+.layer-lock-btns{display:flex;gap:4px}
+.layer-lock-btn{flex:1;padding:4px;font-size:11px;border:1px solid;border-radius:4px;cursor:pointer;transition:all 150ms}
+.layer-lock-btn.locked{border-color:var(--locked);background:var(--lockedBg);color:var(--locked)}
+.layer-lock-btn.caution{border-color:var(--caution);background:var(--cautionBg);color:var(--caution)}
+.layer-lock-btn.open{border-color:var(--open);background:var(--openBg);color:var(--open)}
+.layer-lock-btn:hover{filter:brightness(1.15)}
+/* ARCHITECTURE VIEW */
+.arch-view{display:flex;flex-direction:column;padding:16px;overflow-y:auto}
+.arch-section{margin-bottom:24px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px}
+.arch-section-title{font-weight:600;font-size:14px;margin-bottom:12px;color:var(--accent)}
+.arch-items{display:flex;flex-direction:column;gap:8px}
+.arch-item{padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.arch-item-name{font-weight:500}
+.arch-item-type{font-size:11px;color:var(--text2);background:var(--panel);padding:2px 6px;border-radius:3px}
+/* GRAPH VIEWS */
+svg{background:var(--graphBg)}
+.node{fill:var(--panel);stroke:var(--border);stroke-width:1.5px}
+.node.selected{stroke:var(--accent);stroke-width:2.5px}
+.node text{font-size:11px;text-anchor:middle;fill:var(--text);pointer-events:none}
+.link{stroke:var(--border);stroke-width:1;opacity:0.6}
+.link.selected{stroke:var(--accent);stroke-width:2;opacity:1}
+/* MODAL */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--overlayBg);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;max-width:600px;max-height:80vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column}
+.modal-title{font-weight:600;font-size:18px;margin-bottom:12px}
+.modal-content{flex:1;overflow-y:auto;margin-bottom:16px;font-size:13px;line-height:1.6}
+.modal-buttons{display:flex;gap:8px;justify-content:flex-end}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--accent);color:#fff;padding:12px 16px;border-radius:6px;font-size:13px;box-shadow:var(--shadow);z-index:999;animation:slideIn 200ms ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+/* SIDEBAR MENU */
+.menu-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text2);transition:all 150ms}
+.menu-item:hover{background:var(--panel2);color:var(--text)}
+.menu-item.active{background:var(--accent);color:#fff}
+/* WELCOME SCREEN */
+.welcome-screen{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;text-align:center;padding:20px}
+.welcome-icon{font-size:48px;margin-bottom:16px}
+.welcome-title{font-size:24px;font-weight:600;margin-bottom:8px}
+.welcome-text{font-size:14px;color:var(--text2);margin-bottom:20px;max-width:400px}
+.welcome-code{background:var(--panel);border:1px solid var(--border);padding:12px;border-radius:6px;font-family:monospace;font-size:12px;margin-bottom:16px;color:var(--accent)}
+/* ONBOARDING */
+.onboard-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+.onboard-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:36px 44px;max-width:560px;width:100%;box-shadow:var(--shadow);position:relative;max-height:calc(100vh - 48px);overflow-y:auto}
+.onboard-step-dots{display:flex;gap:8px;justify-content:center;margin-bottom:24px}
+.onboard-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .2s}
+.onboard-dot.active{background:var(--accent);transform:scale(1.2)}
+.onboard-dot.done{background:var(--open)}
+.onboard-h1{font-size:22px;font-weight:700;margin-bottom:6px;text-align:center}
+.onboard-sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:20px;line-height:1.5}
+.onboard-section{margin-bottom:16px}
+.onboard-label{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.onboard-input{width:100%;padding:9px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;box-sizing:border-box}
+.onboard-input:focus{border-color:var(--accent)}
+.onboard-input::placeholder{color:var(--text3)}
+.onboard-cmd{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+.onboard-cmd:hover{border-color:var(--accent)}
+.onboard-cmd code{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:var(--accent);flex:1}
+.onboard-cmd .copy-tag{font-size:10px;color:var(--text3);background:var(--bg);padding:2px 8px;border-radius:4px;font-weight:600;transition:all .15s}
+.onboard-cmd:hover .copy-tag{color:var(--accent);background:var(--accentBg,rgba(91,154,160,.1))}
+.onboard-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.onboard-btn{padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:none}
+.onboard-btn.primary{background:var(--accent);color:#fff}
+.onboard-btn.primary:hover{background:var(--accentDk)}
+.onboard-btn.secondary{background:var(--panel2);color:var(--text2);border:1px solid var(--border)}
+.onboard-btn.secondary:hover{border-color:var(--accent);color:var(--accent)}
+.onboard-btn:disabled{opacity:.4;cursor:not-allowed}
+.onboard-option{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.onboard-option:hover{border-color:var(--accent)}
+.onboard-option.selected{border-color:var(--accent);background:rgba(91,154,160,.08)}
+.onboard-option-num{width:24px;height:24px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text3);flex-shrink:0;transition:all .15s}
+.onboard-option.selected .onboard-option-num{background:var(--accent);color:#fff}
+.onboard-option-text{flex:1}
+.onboard-option-text strong{display:block;font-size:13px;margin-bottom:2px;color:var(--text)}
+.onboard-option-text span{font-size:11px;color:var(--text3);line-height:1.4}
+/* AUDIT LOG VIEW */
+.audit-view{padding:16px;overflow-y:auto;height:100%;display:flex;flex-direction:column}
+.audit-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.audit-table{width:100%;border-collapse:collapse;font-size:12px}
+.audit-table th{text-align:left;padding:8px 10px;background:var(--panel2);border-bottom:2px solid var(--border);font-weight:600;color:var(--text2);text-transform:uppercase;font-size:11px;position:sticky;top:0;z-index:1}
+.audit-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.audit-table tr:hover td{background:var(--panel2)}
+.audit-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.audit-arrow{display:inline-flex;align-items:center;gap:3px;font-size:11px}
+.audit-empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.audit-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.audit-stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px}
+.audit-stat-val{font-size:20px;font-weight:700}
+.audit-stat-label{font-size:11px;color:var(--text2);margin-top:2px}
+.audit-detail-section{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+.audit-detail-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.audit-detail-time{color:var(--text3);font-size:11px;min-width:140px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/babel">
+const {useState, useCallback, useEffect, useRef, useMemo} = React;
+
+const LOCK_COLORS = { locked: '#DC2626', caution: '#F59E0B', open: '#16A34A' };
+
+// ════════════════════════════════════════════
+// SVG ICON COMPONENTS (replace all emojis)
+// ════════════════════════════════════════════
+const I = {
+  lock: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  unlock: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
+  alert: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  check: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  x: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  sun: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+  moon: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+  settings: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  folder: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
+  download: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  upload: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  globe: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+  server: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>,
+  clipboard: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>,
+  database: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
+  code: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+  link: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+  circle: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>,
+  checkCircle: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+  hardhat: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z"/><path d="M10 15V6.5a3.5 3.5 0 0 1 7 0V15"/><path d="M7 15V9a5 5 0 0 1 10 0v6"/></svg>,
+  trash: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  disconnect: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><line x1="2" y1="2" x2="22" y2="22"/></svg>,
+  arrowRight: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+};
+
+// Environment URLs — loaded from localStorage override, then codevault-data.js, then defaults
+function loadEnvUrls() {
+  let saved = null;
+  try { const s = localStorage.getItem('cv-env-urls'); if (s) saved = JSON.parse(s); } catch(e) {}
+  return {
+    staging: (saved && saved.staging) || (window.CODEVAULT_DATA && window.CODEVAULT_DATA.stagingUrl) || 'http://localhost:3000',
+    production: (saved && saved.production) || (window.CODEVAULT_DATA && window.CODEVAULT_DATA.productionUrl) || '',
+  };
+}
+let ENV_URLS = loadEnvUrls();
+
+// Strip framework route groups from paths (e.g. Next.js (protected)/ or (auth)/)
+function cleanPath(path) {
+  if (!path) return '';
+  return path.replace(/\([^)]+\)\//g, '').replace(/\([^)]+\)/g, '');
+}
+
+// ════════════════════════════════════════════
+// DATA INITIALIZATION
+// ════════════════════════════════════════════
+
+// Load external data
+const _d = window.CODEVAULT_DATA || {
+  routes: [],
+  apiRoutes: [],
+  tables: [],
+  serverActions: [],
+  framework: 'generic',
+  projectName: 'My Project'
+};
+
+const ROUTES = _d.routes || [];
+const API_ROUTES = _d.apiRoutes || [];
+const TABLES = _d.tables || [];
+const SERVER_ACTIONS = _d.serverActions || [];
+// Total codebase lines — set via CODEVAULT_DATA.totalLines or falls back to sum of server action lines
+const TOTAL_CODEBASE_LINES = _d.totalLines || null;
+
+// Build GROUP_META dynamically from routes
+const GROUP_META = (() => {
+  const groups = {};
+  const colorMap = {
+    auth: '#EF4444',
+    public: '#10B981',
+    protected: '#3B82F6',
+    admin: '#F59E0B',
+    api: '#EC4899',
+  };
+  const labelMap = {
+    auth: 'Authentication',
+    public: 'Public Pages',
+    protected: 'Protected App',
+    admin: 'Admin Panel',
+    api: 'API Routes',
+  };
+
+  ROUTES.forEach(r => {
+    if (!groups[r.group]) {
+      groups[r.group] = {
+        label: labelMap[r.group] || r.group,
+        color: colorMap[r.group] || '#6366F1'
+      };
+    }
+  });
+  API_ROUTES.forEach(a => {
+    if (!groups[a.group]) {
+      groups[a.group] = {
+        label: labelMap[a.group] || a.group,
+        color: colorMap[a.group] || '#6366F1'
+      };
+    }
+  });
+
+  return groups;
+})();
+
+// Build TABLE_DOMAINS dynamically
+const TABLE_DOMAINS = (() => {
+  const domains = {};
+  const palette = ['#6366F1','#F97316','#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#EC4899','#06B6D4','#A855F7'];
+  const colorMap = {};
+
+  let ci = 0;
+  TABLES.forEach(t => {
+    if (t.domain && !domains[t.domain]) {
+      domains[t.domain] = palette[ci++ % palette.length];
+    }
+  });
+
+  return domains;
+})();
+
+// Default description generator
+function getDescription(node) {
+  const isTable = !!node.domain && !node.funcs;
+  const isAction = !!node.funcs;
+
+  if (isTable) return {
+    plain: `Database table that stores ${node.name.replace(/_/g, ' ')} data. Used by ${node.reads || 0} files for reading and ${node.writes || 0} files for writing.`,
+    impact: `Modifying this table's structure could break ${node.reads || 0} read operations and ${node.writes || 0} write operations across the app.`,
+    ui: 'No UI — this is a database table',
+    logic: 'Data storage, retrieval, and validation rules',
+    data: `Part of the ${node.domain} domain.`
+  };
+
+  if (isAction) return {
+    plain: `Server-side code file with ${(node.funcs || []).length} functions that handle business logic. This runs on the server, not in the browser.`,
+    impact: `Contains ${(node.lines || 0).toLocaleString()} lines of code. Changes could affect ${(node.tables || []).length} database tables.`,
+    ui: 'No direct UI — these are backend functions',
+    logic: (node.funcs || []).join(', '),
+    data: `Interacts with: ${(node.tables || []).join(', ')}`
+  };
+
+  if (node.type === 'api') return {
+    plain: `API endpoint at /${node.path} that handles server requests. This processes data behind the scenes.`,
+    impact: 'API changes can break integrations and dependent systems.',
+    ui: 'No UI — this is a backend API endpoint',
+    logic: 'Request handling, validation, response formatting',
+    data: `Interacts with: ${(node.tables || []).join(', ')}`
+  };
+
+  return {
+    plain: `Page at /${node.path}. ${node.client ? 'Interactive page with browser-side functionality.' : 'Server-rendered page that loads data before displaying.'}`,
+    impact: 'Changes affect users who visit this page.',
+    ui: 'Page layout, visual elements, interactive controls',
+    logic: 'Page-specific business logic and data handling',
+    data: node.tables ? `Uses tables: ${node.tables.join(', ')}` : 'No direct database access'
+  };
+}
+
+// ════════════════════════════════════════════
+// MAIN APP COMPONENT
+// ════════════════════════════════════════════
+
+// ════════════════════════════════════════════
+// USER FLOW GRAPH — D3 interactive navigation map
+// ════════════════════════════════════════════
+function UserFlowGraph({ allNodes, locks, getOverall, onNodeClick }) {
+  const svgRef = React.useRef(null);
+  const zoomRef = React.useRef(null);
+  const posRef = React.useRef(null);
+  const [tip, setTip] = React.useState(null);
+  const [layoutVer, setLayoutVer] = React.useState(0);
+
+  const resetLayout = React.useCallback(() => {
+    try { localStorage.removeItem('cv-uf-layout'); } catch(e) {}
+    setLayoutVer(v => v + 1);
+  }, []);
+
+  React.useEffect(() => {
+    if (!svgRef.current) return;
+    const pages = allNodes.filter(n => n.type === 'page');
+    if (pages.length === 0) return;
+
+    const svg = d3.select(svgRef.current);
+    const W = svgRef.current.clientWidth;
+    const H = svgRef.current.clientHeight;
+    svg.selectAll('*').remove();
+
+    // Auto-generate edges: group hierarchy + shared tables
+    const edges = [];
+    const edgeSet = new Set();
+    const addEdge = (from, to) => {
+      const key = from + '>' + to;
+      if (!edgeSet.has(key) && from !== to) { edgeSet.add(key); edges.push({ source: from, target: to }); }
+    };
+
+    // Group pages by group
+    const groups = {};
+    pages.forEach(p => { if (!groups[p.group]) groups[p.group] = []; groups[p.group].push(p); });
+
+    // Connect pages that share tables
+    for (let i = 0; i < pages.length; i++) {
+      for (let j = i + 1; j < pages.length; j++) {
+        const shared = (pages[i].tables || []).filter(t => (pages[j].tables || []).includes(t));
+        if (shared.length > 0) addEdge(pages[i].id, pages[j].id);
+      }
+    }
+
+    // Connect auth → protected hub (first protected page or largest group member)
+    const authPages = groups['auth'] || [];
+    const protectedPages = groups['protected'] || [];
+    const adminPages = groups['admin'] || [];
+    const publicPages = groups['public'] || [];
+    const hub = protectedPages[0];
+    if (hub) {
+      authPages.forEach(a => addEdge(a.id, hub.id));
+      publicPages.forEach(p => addEdge(p.id, authPages[0]?.id || hub.id));
+      if (protectedPages.length > 1) protectedPages.slice(1).forEach(p => addEdge(hub.id, p.id));
+    }
+    if (adminPages.length > 1) adminPages.slice(1).forEach(p => addEdge(adminPages[0].id, p.id));
+
+    // Layered layout
+    const layerOrder = ['public', 'auth', 'protected', 'admin'];
+    const layerMap = {};
+    pages.forEach(p => { layerMap[p.id] = layerOrder.indexOf(p.group); if (layerMap[p.id] < 0) layerMap[p.id] = 2; });
+
+    const layers = {};
+    pages.forEach(p => { const l = layerMap[p.id]; if (!layers[l]) layers[l] = []; layers[l].push(p); });
+    const sortedLayers = Object.keys(layers).map(Number).sort((a,b) => a - b);
+
+    const padX = 120, padY = 50;
+    const usableW = W - padX * 2;
+    const computed = {};
+    sortedLayers.forEach((layer, i) => {
+      const grp = layers[layer];
+      const x = padX + (usableW * i / Math.max(sortedLayers.length - 1, 1));
+      const spacing = Math.min((H - padY * 2) / Math.max(grp.length + 1, 2), 52);
+      const totalH = spacing * (grp.length - 1);
+      const startY = (H - totalH) / 2;
+      grp.forEach((p, j) => { computed[p.id] = { x, y: startY + j * spacing }; });
+    });
+
+    let saved = null;
+    try { const s = localStorage.getItem('cv-uf-layout'); if (s) saved = JSON.parse(s); } catch(e) {}
+
+    const nodes = pages.map(p => {
+      const pos = (saved && saved[p.id]) ? saved[p.id] : (computed[p.id] || { x: W/2, y: H/2 });
+      const radius = p === hub ? 18 : (p.group === 'auth' || p.group === 'public') ? 13 : 10;
+      return { ...p, radius, x: pos.x, y: pos.y, fx: pos.x, fy: pos.y };
+    });
+    const nodeMap = {}; nodes.forEach(n => { nodeMap[n.id] = n; });
+    const validEdges = edges.filter(e => nodeMap[e.source] && nodeMap[e.target]);
+
+    posRef.current = {};
+    nodes.forEach(n => { posRef.current[n.id] = { x: n.x, y: n.y }; });
+
+    const g = svg.append('g');
+    const zoom = d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => g.attr('transform', e.transform));
+    svg.call(zoom);
+    zoomRef.current = zoom;
+
+    // Auto-fit with generous padding
+    const allX = nodes.map(n => n.x), allY = nodes.map(n => n.y);
+    const minX = Math.min(...allX) - 120, maxX = Math.max(...allX) + 120;
+    const minY = Math.min(...allY) - 80, maxY = Math.max(...allY) + 80;
+    const cW = maxX - minX, cH = maxY - minY;
+    const scale = Math.min(W / cW, H / cH, 1.0) * 0.85;
+    const tx = (W - cW * scale) / 2 - minX * scale;
+    const ty = (H - cH * scale) / 2 - minY * scale;
+    svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+    // Zone backgrounds
+    const zoneColors = { public: 'rgba(59,130,246,', auth: 'rgba(249,115,22,', protected: 'rgba(22,163,74,', admin: 'rgba(168,85,247,' };
+    const zoneLabels = { public: 'PUBLIC', auth: 'AUTH', protected: 'APP', admin: 'ADMIN' };
+    Object.entries(groups).forEach(([gid, gNodes]) => {
+      if (gNodes.length === 0) return;
+      const xs = gNodes.map(n => computed[n.id]?.x || W/2);
+      const ys = gNodes.map(n => computed[n.id]?.y || H/2);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const rx = (Math.max(...xs) - Math.min(...xs)) / 2 + 70;
+      const ry = (Math.max(...ys) - Math.min(...ys)) / 2 + 50;
+      const base = zoneColors[gid] || 'rgba(100,100,100,';
+      g.append('rect').attr('x', cx-rx).attr('y', cy-ry).attr('width', rx*2).attr('height', ry*2)
+        .attr('rx', 14).attr('fill', base + '0.05)').attr('stroke', base + '0.15)').attr('stroke-dasharray', '8,4');
+      g.append('text').attr('x', cx).attr('y', cy-ry+16).attr('text-anchor', 'middle')
+        .attr('font-size', 12).attr('font-weight', 700).attr('fill', 'var(--text3)').attr('opacity', 0.5)
+        .text(zoneLabels[gid] || gid.toUpperCase());
+    });
+
+    // Arrow markers
+    const defs = svg.append('defs');
+    ['locked', 'caution', 'open'].forEach(s => {
+      defs.append('marker').attr('id', 'ufa-' + s).attr('viewBox', '0 0 10 10')
+        .attr('refX', 22).attr('refY', 5).attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
+        .append('path').attr('d', 'M0,0L10,5L0,10z').attr('fill', LOCK_COLORS[s]).attr('opacity', 0.6);
+    });
+
+    // Links
+    const link = g.append('g').selectAll('path').data(validEdges).join('path')
+      .attr('fill', 'none').attr('stroke-width', 1.4).attr('stroke-opacity', 0.4);
+
+    function curvedPath(d) {
+      const s = typeof d.source === 'object' ? d.source : nodeMap[d.source];
+      const t = typeof d.target === 'object' ? d.target : nodeMap[d.target];
+      if (!s || !t) return '';
+      const dx = t.x - s.x, dy = t.y - s.y;
+      const dr = Math.sqrt(dx*dx + dy*dy) * 0.6;
+      return `M${s.x},${s.y}A${dr},${dr} 0 0,1 ${t.x},${t.y}`;
+    }
+    function linkState(d) {
+      const sId = typeof d.source === 'object' ? d.source.id : d.source;
+      const tId = typeof d.target === 'object' ? d.target.id : d.target;
+      const sL = getOverall(sId), tL = getOverall(tId);
+      if (sL === 'open' && tL === 'open') return 'open';
+      if (sL === 'locked' && tL === 'locked') return 'locked';
+      return 'caution';
+    }
+    function updateLinks() {
+      link.attr('d', curvedPath)
+        .attr('stroke', d => LOCK_COLORS[linkState(d)])
+        .attr('marker-end', d => 'url(#ufa-' + linkState(d) + ')');
+    }
+
+    // Nodes
+    const nodeG = g.append('g');
+    const nodeColor = { admin: '#A855F7', auth: '#F97316', public: '#3B82F6' };
+    const node = nodeG.selectAll('circle').data(nodes).join('circle')
+      .attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.radius)
+      .attr('fill', d => nodeColor[d.group] || '#5b9aa0')
+      .attr('stroke', d => LOCK_COLORS[getOverall(d.id)] || LOCK_COLORS.locked)
+      .attr('stroke-width', 2).attr('cursor', 'grab')
+      .on('mouseover', (ev, d) => {
+        const r = svgRef.current.getBoundingClientRect();
+        setTip({ x: ev.clientX - r.left + 14, y: ev.clientY - r.top - 14, name: d.name, lock: getOverall(d.id) });
+        d3.select(ev.target).attr('r', d.radius * 1.3).attr('stroke-width', 3);
+        link.attr('stroke-opacity', l => {
+          const sId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tId = typeof l.target === 'object' ? l.target.id : l.target;
+          return (sId === d.id || tId === d.id) ? 0.9 : 0.1;
+        });
+      })
+      .on('mouseout', (ev, d) => {
+        setTip(null);
+        d3.select(ev.target).attr('r', d.radius).attr('stroke-width', 2);
+        link.attr('stroke-opacity', 0.4);
+      })
+      .on('click', (ev, d) => onNodeClick(d));
+
+    // Labels
+    const labels = g.append('g').selectAll('text').data(nodes).join('text')
+      .text(d => d.name.length > 18 ? d.name.slice(0, 16) + '..' : d.name)
+      .attr('x', d => d.x).attr('y', d => d.y).attr('dy', d => d.radius + 14)
+      .attr('text-anchor', 'middle').attr('font-size', 9).attr('fill', 'var(--graphLabel)').attr('pointer-events', 'none');
+
+    // Collision sim
+    const sim = d3.forceSimulation(nodes)
+      .force('collision', d3.forceCollide().radius(d => d.radius + 16).strength(0.8))
+      .force('link', d3.forceLink(validEdges).id(d => d.id).distance(80).strength(0))
+      .alphaDecay(0.08)
+      .on('tick', () => {
+        node.attr('cx', d => d.x).attr('cy', d => d.y);
+        labels.attr('x', d => d.x).attr('y', d => d.y);
+        updateLinks();
+      });
+    sim.alpha(0.3).restart();
+    setTimeout(() => {
+      sim.stop();
+      nodes.forEach(n => { posRef.current[n.id] = { x: n.x, y: n.y }; });
+      try { localStorage.setItem('cv-uf-layout', JSON.stringify(posRef.current)); } catch(e) {}
+    }, 1200);
+
+    // Drag
+    node.call(d3.drag()
+      .on('start', (ev, d) => { sim.alphaTarget(0.1).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y; d.x = ev.x; d.y = ev.y; })
+      .on('end', (ev, d) => {
+        sim.alphaTarget(0); d.x = d.fx; d.y = d.fy;
+        posRef.current[d.id] = { x: d.x, y: d.y };
+        try { localStorage.setItem('cv-uf-layout', JSON.stringify(posRef.current)); } catch(e) {}
+      })
+    );
+
+    updateLinks();
+    return () => sim.stop();
+  }, [allNodes, locks, getOverall, layoutVer]);
+
+  const zoomIn = () => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, 1.5); };
+  const zoomOut = () => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, 0.67); };
+  const zoomReset = () => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().call(zoomRef.current.transform, d3.zoomIdentity); };
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <svg ref={svgRef} style={{ width: '100%', height: '100%', background: 'var(--graphBg)' }} />
+      <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, padding: 6, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 10, boxShadow: 'var(--shadow)' }}>
+        <button className="btn" onClick={zoomIn} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</button>
+        <button className="btn" onClick={zoomOut} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>{'\u2212'}</button>
+        <button className="btn" onClick={zoomReset} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{'\u25CE'}</button>
+        <button className="btn" onClick={resetLayout} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>R</button>
+      </div>
+      <div style={{ position: 'absolute', top: 12, left: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: 'var(--text3)', zIndex: 10, maxWidth: 340, lineHeight: 1.5 }}>
+        User navigation flow. Drag to rearrange (saved). Click for details. R = reset layout.
+      </div>
+      <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', zIndex: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 5, color: 'var(--text3)' }}>ZONES</div>
+        {[{c:'#3B82F6',l:'Public'},{c:'#F97316',l:'Auth'},{c:'#5b9aa0',l:'App'},{c:'#A855F7',l:'Admin'}].map((x,i) =>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text2)', marginBottom: 3 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: x.c, flexShrink: 0 }} />{x.l}
+          </div>
+        )}
+        <div style={{ fontSize: 10, fontWeight: 700, marginTop: 6, marginBottom: 5, color: 'var(--text3)' }}>LOCK STATE</div>
+        {[{c:LOCK_COLORS.locked,l:'Locked'},{c:LOCK_COLORS.caution,l:'Caution'},{c:LOCK_COLORS.open,l:'Open'}].map((x,i) =>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text2)', marginBottom: 3 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: x.c, flexShrink: 0 }} />{x.l}
+          </div>
+        )}
+      </div>
+      {tip && (
+        <div style={{ position: 'absolute', left: tip.x, top: tip.y, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, pointerEvents: 'none', zIndex: 20, boxShadow: 'var(--shadow)', maxWidth: 280 }}>
+          <div style={{ fontWeight: 700 }}>{tip.name}</div>
+          <div style={{ fontSize: 10, color: LOCK_COLORS[tip.lock], fontWeight: 600, marginTop: 3 }}>Lock: {tip.lock.toUpperCase()}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════
+// ARCHITECTURE GRAPH — D3 interactive architecture map
+// ════════════════════════════════════════════
+function ArchitectureGraph({ allNodes, locks, getOverall, onNodeClick }) {
+  const svgRef = React.useRef(null);
+  const zoomRef = React.useRef(null);
+  const posRef = React.useRef(null);
+  const [tip, setTip] = React.useState(null);
+  const [layoutVer, setLayoutVer] = React.useState(0);
+  const [showEdges, setShowEdges] = React.useState(true);
+  const linkRef = React.useRef(null);
+
+  const resetLayout = React.useCallback(() => {
+    try { localStorage.removeItem('cv-arch-layout'); } catch(e) {}
+    setLayoutVer(v => v + 1);
+  }, []);
+
+  React.useEffect(() => {
+    if (!svgRef.current) return;
+    if (allNodes.length === 0) return;
+
+    const svg = d3.select(svgRef.current);
+    const W = svgRef.current.clientWidth;
+    const H = svgRef.current.clientHeight;
+    svg.selectAll('*').remove();
+
+    // Categorize nodes into architectural layers (columns)
+    const pages = allNodes.filter(n => n.type === 'page');
+    const apis = allNodes.filter(n => n.type === 'api');
+    const actions = allNodes.filter(n => n.funcs && !n.domain);
+    const tables = allNodes.filter(n => n.domain && !n.funcs);
+
+    const columns = [
+      { id: 'pages', label: 'PAGES / ROUTES', color: 'rgba(59,130,246,', nodes: pages, nodeColor: '#3B82F6' },
+      { id: 'api', label: 'API ENDPOINTS', color: 'rgba(236,72,153,', nodes: apis, nodeColor: '#EC4899' },
+      { id: 'actions', label: 'SERVER ACTIONS', color: 'rgba(249,115,22,', nodes: actions, nodeColor: '#F97316' },
+      { id: 'tables', label: 'DATABASE TABLES', color: 'rgba(168,85,247,', nodes: tables, nodeColor: '#A855F7' },
+    ].filter(c => c.nodes.length > 0);
+
+    // Generate edges: pages → apis, pages → actions (shared tables), actions → tables
+    const edges = [];
+    const edgeSet = new Set();
+    const addEdge = (from, to, type) => {
+      const key = from + '>' + to;
+      if (!edgeSet.has(key) && from !== to) { edgeSet.add(key); edges.push({ source: from, target: to, type }); }
+    };
+
+    // Pages to actions via shared tables
+    pages.forEach(p => {
+      if (!p.tables) return;
+      actions.forEach(a => {
+        const shared = (p.tables || []).filter(t => (a.tables || []).includes(t));
+        if (shared.length > 0) addEdge(p.id, a.id, 'data');
+      });
+    });
+
+    // Actions to tables
+    actions.forEach(a => {
+      (a.tables || []).forEach(tName => {
+        const table = tables.find(t => t.name === tName);
+        if (table) addEdge(a.id, table.id, 'data');
+      });
+    });
+
+    // Pages to APIs (same group or shared tables)
+    pages.forEach(p => {
+      apis.forEach(a => {
+        if (p.group === a.group) addEdge(p.id, a.id, 'api');
+        const shared = (p.tables || []).filter(t => (a.tables || []).includes(t));
+        if (shared.length > 0) addEdge(p.id, a.id, 'data');
+      });
+    });
+
+    // Compute layered positions — generous spacing, no cramming
+    const nodeSpacing = 52;
+    const colSpacing = 400;
+    const padX = 80, padY = 40;
+    const computed = {};
+    const maxColHeight = Math.max(...columns.map(c => c.nodes.length)) * nodeSpacing;
+
+    columns.forEach((col, ci) => {
+      const x = padX + ci * colSpacing;
+      const totalH = (col.nodes.length - 1) * nodeSpacing;
+      const startY = padY + (maxColHeight - totalH) / 2;
+      col.nodes.forEach((n, ni) => {
+        computed[n.id] = { x, y: startY + ni * nodeSpacing };
+      });
+    });
+
+    // Load saved positions
+    let saved = null;
+    try { const s = localStorage.getItem('cv-arch-layout'); if (s) saved = JSON.parse(s); } catch(e) {}
+
+    const nodes = allNodes.map(n => {
+      const pos = (saved && saved[n.id]) ? saved[n.id] : (computed[n.id] || { x: W/2, y: H/2 });
+      const isTable = n.domain && !n.funcs;
+      const isAction = !!n.funcs;
+      const isApi = n.type === 'api';
+      const radius = isTable ? 10 : isAction ? 12 : isApi ? 11 : 13;
+      return { ...n, radius, x: pos.x, y: pos.y, fx: pos.x, fy: pos.y };
+    });
+    const nodeMap = {}; nodes.forEach(n => { nodeMap[n.id] = n; });
+    const validEdges = edges.filter(e => nodeMap[e.source] && nodeMap[e.target]);
+
+    posRef.current = {};
+    nodes.forEach(n => { posRef.current[n.id] = { x: n.x, y: n.y }; });
+
+    const g = svg.append('g');
+    const zoom = d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => g.attr('transform', e.transform));
+    svg.call(zoom);
+    zoomRef.current = zoom;
+
+    // Auto-fit with generous padding
+    const allX = nodes.map(n => n.x), allY = nodes.map(n => n.y);
+    const minX = Math.min(...allX) - 120, maxX = Math.max(...allX) + 120;
+    const minY = Math.min(...allY) - 80, maxY = Math.max(...allY) + 80;
+    const cW = maxX - minX, cH = maxY - minY;
+    const scale = Math.min(W / cW, H / cH, 1.0) * 0.85;
+    const tx = (W - cW * scale) / 2 - minX * scale;
+    const ty = (H - cH * scale) / 2 - minY * scale;
+    svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+    // Column zone backgrounds
+    columns.forEach((col, ci) => {
+      const colNodes = col.nodes.map(n => computed[n.id]).filter(Boolean);
+      if (colNodes.length === 0) return;
+      const xs = colNodes.map(c => c.x);
+      const ys = colNodes.map(c => c.y);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const rx = Math.max((Math.max(...xs) - Math.min(...xs)) / 2 + 60, 60);
+      const ry = (Math.max(...ys) - Math.min(...ys)) / 2 + 50;
+      g.append('rect').attr('x', cx-rx).attr('y', cy-ry).attr('width', rx*2).attr('height', ry*2)
+        .attr('rx', 14).attr('fill', col.color + '0.05)').attr('stroke', col.color + '0.15)').attr('stroke-dasharray', '8,4');
+      g.append('text').attr('x', cx).attr('y', cy-ry+16).attr('text-anchor', 'middle')
+        .attr('font-size', 11).attr('font-weight', 700).attr('fill', 'var(--text3)').attr('opacity', 0.5)
+        .text(col.label + ' (' + col.nodes.length + ')');
+    });
+
+    // Arrow markers
+    const defs = svg.append('defs');
+    ['locked', 'caution', 'open'].forEach(s => {
+      defs.append('marker').attr('id', 'arch-a-' + s).attr('viewBox', '0 0 10 10')
+        .attr('refX', 22).attr('refY', 5).attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
+        .append('path').attr('d', 'M0,0L10,5L0,10z').attr('fill', LOCK_COLORS[s]).attr('opacity', 0.5);
+    });
+
+    // Links — curved paths, visible by default with toggle
+    const link = g.append('g').selectAll('path').data(validEdges).join('path')
+      .attr('fill', 'none').attr('stroke-width', 1.4).attr('stroke-opacity', 0.4);
+    linkRef.current = link;
+
+    function curvedPath(d) {
+      const s = typeof d.source==='object'?d.source:nodeMap[d.source];
+      const t = typeof d.target==='object'?d.target:nodeMap[d.target];
+      if (!s||!t) return '';
+      const dx = t.x - s.x, dy = t.y - s.y;
+      const dr = Math.sqrt(dx*dx + dy*dy) * 0.6;
+      return `M${s.x},${s.y}A${dr},${dr} 0 0,1 ${t.x},${t.y}`;
+    }
+    function linkState(d) {
+      const sId = typeof d.source === 'object' ? d.source.id : d.source;
+      const tId = typeof d.target === 'object' ? d.target.id : d.target;
+      const sL = getOverall(sId), tL = getOverall(tId);
+      if (sL === 'open' && tL === 'open') return 'open';
+      if (sL === 'locked' && tL === 'locked') return 'locked';
+      return 'caution';
+    }
+
+    const getNodeColor = (n) => {
+      if (n.type === 'page') return '#3B82F6';
+      if (n.type === 'api') return '#EC4899';
+      if (n.funcs) return '#F97316';
+      if (n.domain) return '#A855F7';
+      return '#5b9aa0';
+    };
+
+    const nodeG = g.append('g');
+    const node = nodeG.selectAll('circle').data(nodes).join('circle')
+      .attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.radius)
+      .attr('fill', d => getNodeColor(d))
+      .attr('stroke', d => LOCK_COLORS[getOverall(d.id)] || LOCK_COLORS.locked)
+      .attr('stroke-width', 2).attr('cursor', 'grab')
+      .on('mouseover', (ev, d) => {
+        const r = svgRef.current.getBoundingClientRect();
+        const typeLabel = d.type === 'page' ? 'Page' : d.type === 'api' ? 'API' : d.funcs ? 'Server Action' : 'Table';
+        setTip({ x: ev.clientX - r.left + 14, y: ev.clientY - r.top - 14, name: d.name, lock: getOverall(d.id), type: typeLabel });
+        d3.select(ev.target).attr('r', d.radius * 1.4).attr('stroke-width', 3);
+        // Highlight this node's connections, dim others
+        link.attr('stroke-opacity', l => {
+          const sId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tId = typeof l.target === 'object' ? l.target.id : l.target;
+          return (sId === d.id || tId === d.id) ? 0.9 : 0.06;
+        }).attr('stroke-width', l => {
+          const sId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tId = typeof l.target === 'object' ? l.target.id : l.target;
+          return (sId === d.id || tId === d.id) ? 2.2 : 1;
+        });
+        // Dim unconnected nodes
+        const connectedIds = new Set();
+        connectedIds.add(d.id);
+        validEdges.forEach(e => {
+          const sId = typeof e.source === 'object' ? e.source.id : e.source;
+          const tId = typeof e.target === 'object' ? e.target.id : e.target;
+          if (sId === d.id) connectedIds.add(tId);
+          if (tId === d.id) connectedIds.add(sId);
+        });
+        node.attr('opacity', n => connectedIds.has(n.id) ? 1 : 0.15);
+        labels.attr('opacity', n => connectedIds.has(n.id) ? 1 : 0.1);
+      })
+      .on('mouseout', (ev, d) => {
+        setTip(null);
+        d3.select(ev.target).attr('r', d.radius).attr('stroke-width', 2);
+        link.attr('stroke-opacity', showEdges ? 0.4 : 0).attr('stroke-width', 1.4);
+        node.attr('opacity', 1);
+        labels.attr('opacity', 1);
+      })
+      .on('click', (ev, d) => onNodeClick(d));
+
+    // Labels
+    const labels = g.append('g').selectAll('text').data(nodes).join('text')
+      .text(d => d.name.length > 20 ? d.name.slice(0, 18) + '..' : d.name)
+      .attr('x', d => d.x).attr('y', d => d.y).attr('dy', d => d.radius + 14)
+      .attr('text-anchor', 'middle').attr('font-size', 8.5).attr('fill', 'var(--graphLabel)').attr('pointer-events', 'none');
+
+    // Collision sim
+    const sim = d3.forceSimulation(nodes)
+      .force('collision', d3.forceCollide().radius(d => d.radius + 14).strength(0.8))
+      .force('link', d3.forceLink(validEdges).id(d => d.id).distance(60).strength(0))
+      .alphaDecay(0.08)
+      .on('tick', () => {
+        node.attr('cx', d => d.x).attr('cy', d => d.y);
+        labels.attr('x', d => d.x).attr('y', d => d.y);
+        link.attr('d', curvedPath)
+          .attr('stroke', d => LOCK_COLORS[linkState(d)])
+          .attr('marker-end', d => 'url(#arch-a-' + linkState(d) + ')');
+      });
+    sim.alpha(0.3).restart();
+    setTimeout(() => {
+      sim.stop();
+      nodes.forEach(n => { posRef.current[n.id] = { x: n.x, y: n.y }; });
+      try { localStorage.setItem('cv-arch-layout', JSON.stringify(posRef.current)); } catch(e) {}
+    }, 1200);
+
+    // Drag
+    node.call(d3.drag()
+      .on('start', (ev, d) => { sim.alphaTarget(0.1).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y; d.x = ev.x; d.y = ev.y; })
+      .on('end', (ev, d) => {
+        sim.alphaTarget(0); d.x = d.fx; d.y = d.fy;
+        posRef.current[d.id] = { x: d.x, y: d.y };
+        try { localStorage.setItem('cv-arch-layout', JSON.stringify(posRef.current)); } catch(e) {}
+      })
+    );
+
+    link.attr('d', curvedPath)
+      .attr('stroke', d => LOCK_COLORS[linkState(d)])
+      .attr('marker-end', d => 'url(#arch-a-' + linkState(d) + ')');
+    return () => sim.stop();
+  }, [allNodes, locks, getOverall, layoutVer]);
+
+  // Sync edge visibility when toggle changes
+  React.useEffect(() => {
+    if (linkRef.current) {
+      linkRef.current.attr('stroke-opacity', showEdges ? 0.4 : 0);
+    }
+  }, [showEdges]);
+
+  const zoomIn = () => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, 1.5); };
+  const zoomOut = () => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, 0.67); };
+  const zoomReset = () => { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().call(zoomRef.current.transform, d3.zoomIdentity); };
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <svg ref={svgRef} style={{ width: '100%', height: '100%', background: 'var(--graphBg)' }} />
+      <div style={{ position: 'absolute', top: 12, right: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, padding: 6, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 10, boxShadow: 'var(--shadow)' }}>
+        <button className="btn" onClick={zoomIn} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</button>
+        <button className="btn" onClick={zoomOut} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>{'\u2212'}</button>
+        <button className="btn" onClick={zoomReset} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{'\u25CE'}</button>
+        <button className="btn" onClick={resetLayout} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>R</button>
+        <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
+        <button className={showEdges ? 'btn' : 'btn secondary'} onClick={() => setShowEdges(v => !v)} style={{ width: 32, height: 32, padding: 0, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={showEdges ? 'Hide edges (hover only)' : 'Show all edges'}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            {showEdges ? (<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>) : (<><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>)}
+          </svg>
+        </button>
+      </div>
+      <div style={{ position: 'absolute', top: 12, left: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: 'var(--text3)', zIndex: 10, maxWidth: 340, lineHeight: 1.5 }}>
+        System architecture. Nodes grouped by layer: Pages {I.arrowRight(10,'var(--text3)')} APIs {I.arrowRight(10,'var(--text3)')} Server Actions {I.arrowRight(10,'var(--text3)')} Tables. Drag to rearrange. R = reset.
+      </div>
+      <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', zIndex: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 5, color: 'var(--text3)' }}>LAYERS</div>
+        {[{c:'#3B82F6',l:'Pages'},{c:'#EC4899',l:'APIs'},{c:'#F97316',l:'Actions'},{c:'#A855F7',l:'Tables'}].map((x,i) =>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text2)', marginBottom: 3 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: x.c, flexShrink: 0 }} />{x.l}
+          </div>
+        )}
+        <div style={{ fontSize: 10, fontWeight: 700, marginTop: 6, marginBottom: 5, color: 'var(--text3)' }}>LOCK STATE</div>
+        {[{c:LOCK_COLORS.locked,l:'Locked'},{c:LOCK_COLORS.caution,l:'Caution'},{c:LOCK_COLORS.open,l:'Open'}].map((x,i) =>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text2)', marginBottom: 3 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: x.c, flexShrink: 0 }} />{x.l}
+          </div>
+        )}
+      </div>
+      {tip && (
+        <div style={{ position: 'absolute', left: tip.x, top: tip.y, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, pointerEvents: 'none', zIndex: 20, boxShadow: 'var(--shadow)', maxWidth: 280 }}>
+          <div style={{ fontWeight: 700 }}>{tip.name}</div>
+          <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{tip.type}</div>
+          <div style={{ fontSize: 10, color: LOCK_COLORS[tip.lock], fontWeight: 600, marginTop: 3 }}>Lock: {tip.lock.toUpperCase()}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuditLogView({ auditLog, setAuditLog, allNodes, onNodeClick }) {
+  const [filterTarget, setFilterTarget] = useState('');
+  const [filterLayer, setFilterLayer] = useState('all');
+  const [filterAction, setFilterAction] = useState('all');
+  const [searchQ, setSearchQ] = useState('');
+
+  const filtered = useMemo(() => {
+    let logs = [...auditLog].reverse();
+    if (filterTarget) logs = logs.filter(l => l.target === filterTarget);
+    if (filterLayer !== 'all') logs = logs.filter(l => l.layer === filterLayer);
+    if (filterAction === 'lock') logs = logs.filter(l => l.to === 'locked');
+    else if (filterAction === 'unlock') logs = logs.filter(l => l.from === 'locked' && l.to !== 'locked');
+    else if (filterAction === 'caution') logs = logs.filter(l => l.to === 'caution');
+    if (searchQ.trim()) {
+      const q = searchQ.toLowerCase();
+      logs = logs.filter(l => l.targetName.toLowerCase().includes(q) || l.target.toLowerCase().includes(q) || (l.reason || '').toLowerCase().includes(q));
+    }
+    return logs;
+  }, [auditLog, filterTarget, filterLayer, filterAction, searchQ]);
+
+  const stats = useMemo(() => {
+    const total = auditLog.length;
+    const locks = auditLog.filter(l => l.to === 'locked').length;
+    const unlocks = auditLog.filter(l => l.from === 'locked' && l.to !== 'locked').length;
+    const uniqueItems = new Set(auditLog.map(l => l.target)).size;
+    const sessions = new Set(auditLog.map(l => l.session)).size;
+    return { total, locks, unlocks, uniqueItems, sessions };
+  }, [auditLog]);
+
+  const exportLog = () => {
+    const blob = new Blob([JSON.stringify(auditLog, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'codevault-audit-log.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearLog = () => {
+    if (confirm('Clear all audit log entries? This cannot be undone.')) {
+      setAuditLog([]);
+      try { localStorage.removeItem('cv-audit-log'); } catch(e) {}
+    }
+  };
+
+  const formatTime = (iso) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch(e) { return iso; }
+  };
+
+  const stateColor = (s) => s === 'locked' ? 'var(--locked)' : s === 'caution' ? 'var(--caution)' : 'var(--open)';
+  const stateBg = (s) => s === 'locked' ? 'var(--lockedBg)' : s === 'caution' ? 'var(--cautionBg)' : 'var(--openBg)';
+
+  return (
+    <div className="audit-view">
+      <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Audit Log</h2>
+      <p style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '16px' }}>
+        Complete history of every lock and unlock action. {auditLog.length} entries across {stats.sessions} sessions.
+      </p>
+
+      <div className="audit-stats">
+        <div className="audit-stat">
+          <div className="audit-stat-val">{stats.total}</div>
+          <div className="audit-stat-label">Total Changes</div>
+        </div>
+        <div className="audit-stat">
+          <div className="audit-stat-val" style={{ color: 'var(--locked)' }}>{stats.locks}</div>
+          <div className="audit-stat-label">Lock Actions</div>
+        </div>
+        <div className="audit-stat">
+          <div className="audit-stat-val" style={{ color: 'var(--open)' }}>{stats.unlocks}</div>
+          <div className="audit-stat-label">Unlock Actions</div>
+        </div>
+        <div className="audit-stat">
+          <div className="audit-stat-val" style={{ color: 'var(--accent)' }}>{stats.uniqueItems}</div>
+          <div className="audit-stat-label">Items Touched</div>
+        </div>
+        <div className="audit-stat">
+          <div className="audit-stat-val" style={{ color: 'var(--caution)' }}>{stats.sessions}</div>
+          <div className="audit-stat-label">Sessions</div>
+        </div>
+      </div>
+
+      <div className="audit-toolbar">
+        <input className="input" placeholder="Search items..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ width: 180 }} />
+        <select className="input" value={filterLayer} onChange={e => setFilterLayer(e.target.value)} style={{ width: 100 }}>
+          <option value="all">All Layers</option>
+          <option value="ui">UI</option>
+          <option value="logic">Logic</option>
+          <option value="data">Data</option>
+        </select>
+        <select className="input" value={filterAction} onChange={e => setFilterAction(e.target.value)} style={{ width: 120 }}>
+          <option value="all">All Actions</option>
+          <option value="lock">Locks Only</option>
+          <option value="unlock">Unlocks Only</option>
+          <option value="caution">Caution Only</option>
+        </select>
+        <select className="input" value={filterTarget} onChange={e => setFilterTarget(e.target.value)} style={{ width: 160 }}>
+          <option value="">All Items</option>
+          {[...new Set(auditLog.map(l => l.target))].sort().map(t => (
+            <option key={t} value={t}>{auditLog.find(l => l.target === t)?.targetName || t}</option>
+          ))}
+        </select>
+        <div style={{ flex: 1 }} />
+        <button className="btn secondary" onClick={exportLog} style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.download(12)} Export Log</button>
+        <button className="btn secondary" onClick={clearLog} style={{ fontSize: '12px', color: 'var(--locked)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.trash(12, 'var(--locked)')} Clear</button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="audit-empty">
+          {auditLog.length === 0 ? (
+            <div>
+              <div style={{ marginBottom: '12px' }}>{I.clipboard(36, 'var(--text3)')}</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '6px' }}>No audit entries yet</div>
+              <div style={{ fontSize: '13px' }}>Lock state changes will be recorded here automatically.</div>
+            </div>
+          ) : (
+            <div>No entries match your filters.</div>
+          )}
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <table className="audit-table">
+            <thead>
+              <tr>
+                <th style={{ width: 150 }}>Time</th>
+                <th>Item</th>
+                <th style={{ width: 65 }}>Type</th>
+                <th style={{ width: 60 }}>Layer</th>
+                <th style={{ width: 170 }}>Change</th>
+                <th style={{ width: 80 }}>Source</th>
+                <th style={{ width: 90 }}>Session</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, 200).map(entry => (
+                <tr key={entry.id} style={{ cursor: 'pointer' }} onClick={() => {
+                  const node = allNodes.find(n => n.id === entry.target);
+                  if (node) onNodeClick(node);
+                }}>
+                  <td style={{ color: 'var(--text3)', fontSize: '11px', fontFamily: 'monospace' }}>{formatTime(entry.timestamp)}</td>
+                  <td style={{ fontWeight: 600 }}>{entry.targetName}</td>
+                  <td><span className="audit-tag" style={{ background: 'var(--panel2)', color: 'var(--text2)' }}>{entry.targetType}</span></td>
+                  <td><span className="audit-tag" style={{ background: 'var(--panel2)', color: 'var(--accent)', textTransform: 'uppercase' }}>{entry.layer}</span></td>
+                  <td>
+                    <span className="audit-arrow">
+                      <span className="audit-tag" style={{ background: stateBg(entry.from), color: stateColor(entry.from) }}>{entry.from}</span>
+                      <span style={{ color: 'var(--text3)', display: 'inline-flex', alignItems: 'center' }}>{I.arrowRight(10, 'var(--text3)')}</span>
+                      <span className="audit-tag" style={{ background: stateBg(entry.to), color: stateColor(entry.to) }}>{entry.to}</span>
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '11px', color: 'var(--text3)' }}>{entry.source}</td>
+                  <td style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'monospace' }}>{entry.session?.slice(0,10) || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length > 200 && (
+            <div style={{ textAlign: 'center', padding: '12px', color: 'var(--text3)', fontSize: '12px' }}>
+              Showing 200 of {filtered.length} entries. Use filters to narrow results.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════
+// ONBOARDING WIZARD
+// ════════════════════════════════════════════
+function OnboardingWizard({ onComplete }) {
+  const [step, setStep] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [setupMethod, setSetupMethod] = useState(null);
+  const totalSteps = 3;
+
+  const copyCmd = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  const handleFinish = () => {
+    try { localStorage.setItem('cv-onboarded', 'true'); } catch(e) {}
+    onComplete();
+  };
+
+  const renderStep = () => {
+    switch(step) {
+      case 0: return (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, var(--accent), #7eb8c4)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {I.lock(28, '#fff')}
+            </div>
+          </div>
+          <div className="onboard-h1">Welcome to CodeVault</div>
+          <div className="onboard-sub">
+            Visual lock control for your codebase. Protect UI, logic, and data layers independently.
+            Tell AI agents exactly what they can and can't touch.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { icon: I.lock(14, 'var(--locked)'), text: 'Three-layer lock control' },
+              { icon: I.arrowRight(14, 'var(--accent)'), text: 'Architecture visualization' },
+              { icon: I.clipboard(14, 'var(--caution)'), text: 'Full audit trail' },
+              { icon: I.download(14, 'var(--open)'), text: 'AI-ready config export' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--panel2)', borderRadius: 8, fontSize: 11, color: 'var(--text2)' }}>
+                <span style={{ flexShrink: 0 }}>{item.icon}</span>
+                {item.text}
+              </div>
+            ))}
+          </div>
+        </>
+      );
+
+      case 1: return (
+        <>
+          <div className="onboard-h1">Connect Your Codebase</div>
+          <div className="onboard-sub">Pick how you want to load your project into CodeVault.</div>
+
+          <div className={'onboard-option' + (setupMethod === 'scan' ? ' selected' : '')} onClick={() => setSetupMethod('scan')}>
+            <div className="onboard-option-num">1</div>
+            <div className="onboard-option-text">
+              <strong>Auto-scan (recommended)</strong>
+              <span>One command scans your project, detects your framework, and generates everything automatically.</span>
+            </div>
+          </div>
+
+          {setupMethod === 'scan' && (
+            <div style={{ marginLeft: 36, marginBottom: 12 }}>
+              <div className="onboard-cmd" onClick={() => copyCmd('node setup.mjs')}>
+                <code>node setup.mjs</code>
+                <span className="copy-tag">{copied ? 'Copied!' : 'Click to copy'}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.5 }}>
+                Run from the CodeVault folder. Auto-detects your framework and project name from <strong>package.json</strong>. Creates <strong>codevault-data.js</strong> + <strong>LOCK_CONFIG.json</strong>, then refresh this page.
+              </div>
+            </div>
+          )}
+
+          <div className={'onboard-option' + (setupMethod === 'ai' ? ' selected' : '')} onClick={() => setSetupMethod('ai')}>
+            <div className="onboard-option-num">2</div>
+            <div className="onboard-option-text">
+              <strong>Let your AI agent do it</strong>
+              <span>Point Claude Code, Cursor, or Copilot at this folder — it reads CLAUDE.md and sets up automatically.</span>
+            </div>
+          </div>
+
+          {setupMethod === 'ai' && (
+            <div style={{ marginLeft: 36, marginBottom: 12 }}>
+              <div className="onboard-cmd" onClick={() => copyCmd('Read the CLAUDE.md in the codevault folder and run setup.mjs to scan my codebase and generate the CodeVault data files.')}>
+                <code style={{ fontSize: 11, whiteSpace: 'normal', lineHeight: 1.4 }}>Read the CLAUDE.md in the codevault folder and run setup.mjs to scan my codebase.</code>
+                <span className="copy-tag">{copied ? 'Copied!' : 'Copy prompt'}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.5 }}>
+                Paste this into your AI agent, or just point it at this folder — the <strong>CLAUDE.md</strong> tells it exactly what to do.
+              </div>
+            </div>
+          )}
+
+          <div className={'onboard-option' + (setupMethod === 'empty' ? ' selected' : '')} onClick={() => setSetupMethod('empty')}>
+            <div className="onboard-option-num">3</div>
+            <div className="onboard-option-text">
+              <strong>Start empty</strong>
+              <span>Jump straight in and explore the interface. You can connect your project later.</span>
+            </div>
+          </div>
+        </>
+      );
+
+      case 2: return (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <div style={{ width: 56, height: 56, background: 'var(--openBg)', border: '2px solid var(--open)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {I.check(28, 'var(--open)')}
+            </div>
+          </div>
+          <div className="onboard-h1">You're Ready!</div>
+          <div className="onboard-sub">Here's what you can do in CodeVault:</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {[
+              { label: 'Lock Grid', desc: 'Set granular lock states on every route, API, action, and table.' },
+              { label: 'Architecture', desc: 'Interactive graph of your system with live lock state overlays.' },
+              { label: 'Data Flow', desc: 'Trace how pages connect through functions to your database.' },
+              { label: 'Audit Log', desc: 'Every lock change is recorded with timestamps and session IDs.' },
+              { label: 'Connect File', desc: 'Link a LOCK_CONFIG.json for auto-save directly to disk.' },
+              { label: 'Export', desc: 'Generate config that AI agents read before editing your code.' },
+            ].map((item, i) => (
+              <div key={i} style={{ padding: '8px 10px', background: 'var(--panel2)', borderRadius: 8, fontSize: 11 }}>
+                <strong style={{ color: 'var(--accent)', display: 'block', marginBottom: 2, fontSize: 12 }}>{item.label}</strong>
+                <span style={{ color: 'var(--text3)', lineHeight: 1.4 }}>{item.desc}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      );
+    }
+  };
+
+  return (
+    <div className="onboard-overlay">
+      <div className="onboard-card">
+        <div className="onboard-step-dots">
+          {Array.from({ length: totalSteps }, (_, i) => (
+            <div key={i} className={'onboard-dot' + (i === step ? ' active' : i < step ? ' done' : '')} />
+          ))}
+        </div>
+        {renderStep()}
+        <div className="onboard-actions">
+          {step > 0 && <button className="onboard-btn secondary" onClick={() => setStep(s => s - 1)}>Back</button>}
+          {step < totalSteps - 1 ? (
+            <button className="onboard-btn primary" onClick={() => setStep(s => s + 1)}
+              disabled={step === 1 && !setupMethod}>
+              {step === 0 ? 'Get Started' : 'Continue'}
+            </button>
+          ) : (
+            <button className="onboard-btn primary" onClick={handleFinish}>Launch CodeVault</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CodeVault() {
+  const [currentView, setCurrentView] = useState('overview');
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [theme, setTheme] = useState('dark');
+  const [activeEnv, setActiveEnv] = useState('staging');
+  const [locks, setLocks] = useState({});
+  const [connected, setConnected] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [auditLog, setAuditLog] = useState(() => {
+    try { const s = localStorage.getItem('cv-audit-log'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  const [envUrls, setEnvUrls] = useState(() => loadEnvUrls());
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Show onboarding if never completed AND no external data loaded
+    try {
+      const done = localStorage.getItem('cv-onboarded');
+      if (done === 'true') return false;
+    } catch(e) {}
+    // If data was provided externally, skip onboarding
+    if (window.CODEVAULT_DATA && (window.CODEVAULT_DATA.routes?.length > 0 || window.CODEVAULT_DATA.tables?.length > 0)) return false;
+    return true;
+  });
+  const fileHandleRef = useRef(null);
+  const sessionId = useRef('s-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6));
+  const initialLoad = useRef(false);
+
+  // Sync ENV_URLS global when envUrls state changes
+  useEffect(() => {
+    ENV_URLS = envUrls;
+  }, [envUrls]);
+
+  // Initialize locks
+  useEffect(() => {
+    const allNodes = [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS];
+    const initialLocks = {};
+    allNodes.forEach(n => {
+      initialLocks[n.id] = { ui: 'locked', logic: 'locked', data: 'locked' };
+    });
+    setLocks(initialLocks);
+  }, []);
+
+  // Persist audit log to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('cv-audit-log', JSON.stringify(auditLog.slice(-500))); } catch(e) {}
+  }, [auditLog]);
+
+  const allNodes = useMemo(() => [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS], []);
+
+  const filteredNodes = useMemo(() => {
+    if (!searchQuery.trim()) return allNodes;
+    const q = searchQuery.toLowerCase();
+    return allNodes.filter(n =>
+      n.name.toLowerCase().includes(q) ||
+      n.id.toLowerCase().includes(q) ||
+      (n.path && n.path.toLowerCase().includes(q))
+    );
+  }, [allNodes, searchQuery]);
+
+  const buildConfigJSON = useCallback((lockState) => {
+    const cfg = {
+      version: '1.0.0',
+      project: _d.projectName || 'My Project',
+      framework: _d.framework || 'generic',
+      description: 'Lock configuration for CodeVault. Three-layer access control: UI, Logic, Data.',
+      _states: {
+        locked: 'LOCKED — Do not modify. Refuse changes.',
+        caution: 'CAUTION — Ask first. Require explicit confirmation.',
+        open: 'OPEN — Proceed freely.'
+      },
+      _layers: {
+        ui: 'Visual layout, styling, CSS classes, component structure, HTML/JSX markup',
+        logic: 'Business rules, validation, calculations, workflows, state management',
+        data: 'Database queries, API calls, data schemas, request/response shapes'
+      },
+      routes: {},
+      serverActions: {},
+      tables: {},
+      apiRoutes: {},
+      directoryRules: [
+        { pattern: 'src/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core source code' }
+      ]
+    };
+
+    allNodes.forEach(n => {
+      const sub = lockState[n.id] || { ui: 'locked', logic: 'locked', data: 'locked' };
+      const entry = { path: n.path || '', name: n.name, ui: sub.ui, logic: sub.logic, data: sub.data };
+
+      if (n.type === 'page') cfg.routes[n.id] = entry;
+      else if (n.type === 'api') cfg.apiRoutes[n.id] = entry;
+      else if (n.funcs) cfg.serverActions[n.id] = entry;
+      else if (n.domain) cfg.tables[n.id] = entry;
+      else cfg.routes[n.id] = entry;
+    });
+
+    return JSON.stringify(cfg, null, 2);
+  }, [allNodes]);
+
+  const importConfig = useCallback((json) => {
+    try {
+      const cfg = JSON.parse(json);
+      const newLocks = {};
+      allNodes.forEach(n => {
+        newLocks[n.id] = { ui: 'locked', logic: 'locked', data: 'locked' };
+      });
+
+      const sections = [cfg.routes, cfg.serverActions, cfg.tables, cfg.apiRoutes];
+      sections.forEach(section => {
+        if (!section) return;
+        Object.entries(section).forEach(([id, val]) => {
+          if (newLocks[id]) {
+            newLocks[id] = {
+              ui: val.ui || 'locked',
+              logic: val.logic || 'locked',
+              data: val.data || 'locked'
+            };
+          }
+        });
+      });
+      return newLocks;
+    } catch (e) {
+      console.error('Failed to parse LOCK_CONFIG.json:', e);
+      return null;
+    }
+  }, [allNodes]);
+
+  const connectToFile = useCallback(async () => {
+    try {
+      if (!window.showOpenFilePicker) {
+        alert('File System Access API not supported. Use Chrome or Edge.');
+        return;
+      }
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'JSON Config', accept: { 'application/json': ['.json'] } }],
+        multiple: false
+      });
+
+      const file = await handle.getFile();
+      const text = await file.text();
+      const imported = importConfig(text);
+
+      if (imported) {
+        initialLoad.current = true;
+        setLocks(imported);
+        fileHandleRef.current = handle;
+        setConnected(true);
+        setTimeout(() => { initialLoad.current = false; }, 500);
+      } else {
+        alert('Could not parse as LOCK_CONFIG.json');
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error('Connect failed:', e);
+      }
+    }
+  }, [importConfig]);
+
+  const disconnectFile = useCallback(() => {
+    fileHandleRef.current = null;
+    setConnected(false);
+  }, []);
+
+  // Auto-save
+  useEffect(() => {
+    if (!connected || !fileHandleRef.current || initialLoad.current) return;
+
+    const saveToFile = async () => {
+      try {
+        const writable = await fileHandleRef.current.createWritable();
+        await writable.write(buildConfigJSON(locks));
+        await writable.close();
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 1500);
+      } catch (e) {
+        console.error('Auto-save failed:', e);
+        if (e.name === 'NotAllowedError') {
+          fileHandleRef.current = null;
+          setConnected(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(saveToFile, 300);
+    return () => clearTimeout(timer);
+  }, [locks, connected, buildConfigJSON]);
+
+  // Auto-refresh
+  const lastFileModified = useRef(0);
+  useEffect(() => {
+    if (!connected || !fileHandleRef.current) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const file = await fileHandleRef.current.getFile();
+        if (file.lastModified !== lastFileModified.current) {
+          lastFileModified.current = file.lastModified;
+          const text = await file.text();
+          const imported = importConfig(text);
+          if (imported) {
+            // Log detected external changes
+            const prevLocks = locks;
+            Object.keys(imported).forEach(nodeId => {
+              ['ui', 'logic', 'data'].forEach(layer => {
+                const oldVal = prevLocks[nodeId]?.[layer] || 'locked';
+                const newVal = imported[nodeId]?.[layer] || 'locked';
+                if (oldVal !== newVal) {
+                  logAuditEntry(nodeId, layer, oldVal, newVal, 'external-sync');
+                }
+              });
+            });
+            initialLoad.current = true;
+            setLocks(imported);
+            setTimeout(() => { initialLoad.current = false; }, 500);
+          }
+        }
+      } catch (e) {}
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [connected, importConfig, locks, logAuditEntry]);
+
+  const getOverall = useCallback((id) => {
+    const sub = locks[id] || { ui: 'locked', logic: 'locked', data: 'locked' };
+    if (sub.ui === 'locked' || sub.logic === 'locked' || sub.data === 'locked') return 'locked';
+    if (sub.ui === 'caution' || sub.logic === 'caution' || sub.data === 'caution') return 'caution';
+    return 'open';
+  }, [locks]);
+
+  const logAuditEntry = useCallback((nodeId, layer, fromState, toState, source = 'codevault-ui', reason = '') => {
+    const node = allNodes.find(n => n.id === nodeId);
+    setAuditLog(prev => [...prev, {
+      id: 'a-' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+      timestamp: new Date().toISOString(),
+      target: nodeId,
+      targetName: node?.name || nodeId,
+      targetType: node?.type === 'page' ? 'route' : node?.type === 'api' ? 'api' : node?.domain ? 'table' : 'action',
+      layer,
+      from: fromState,
+      to: toState,
+      source,
+      reason,
+      session: sessionId.current
+    }]);
+  }, [allNodes]);
+
+  const updateLock = useCallback((nodeId, layer, state) => {
+    setLocks(prev => {
+      const oldState = prev[nodeId]?.[layer] || 'locked';
+      if (oldState !== state) {
+        logAuditEntry(nodeId, layer, oldState, state);
+      }
+      return { ...prev, [nodeId]: { ...prev[nodeId], [layer]: state } };
+    });
+  }, [logAuditEntry]);
+
+  const handleNodeClick = useCallback((node) => {
+    setSelectedNode(node);
+    setShowDetail(true);
+  }, []);
+
+  const handleExport = useCallback(() => {
+    const json = buildConfigJSON(locks);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'LOCK_CONFIG.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [locks, buildConfigJSON]);
+
+  const handleImportFile = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const imported = importConfig(text);
+    if (imported) {
+      setLocks(imported);
+    } else {
+      alert('Invalid LOCK_CONFIG.json format');
+    }
+  }, [importConfig]);
+
+  // Check if data is loaded
+  const hasData = ROUTES.length > 0 || API_ROUTES.length > 0 || TABLES.length > 0 || SERVER_ACTIONS.length > 0;
+
+  // Show onboarding wizard when no data and not yet completed
+  if (!hasData && showOnboarding) {
+    return (
+      <div className="root" data-theme={theme}>
+        <OnboardingWizard onComplete={() => setShowOnboarding(false)} />
+      </div>
+    );
+  }
+
+  // Show "no data" fallback only after onboarding was completed or skipped
+  if (!hasData) {
+    return (
+      <div className="root" data-theme={theme}>
+        <div style={{ flex: 1 }}>
+          <div className="welcome-screen">
+            <div className="welcome-icon">{I.lock(48, 'var(--accent)')}</div>
+            <h1 className="welcome-title">CodeVault v1.0</h1>
+            <p className="welcome-text">
+              Universal lock control system for your codebase.
+            </p>
+            <div className="welcome-code">
+              Run in your project:<br/>
+              node setup.mjs
+            </div>
+            <p className="welcome-text" style={{ fontSize: '12px', color: 'var(--text3)' }}>
+              This will scan your codebase and create codevault-data.js in the same directory as this file.
+            </p>
+            <button className="onboard-btn primary" onClick={() => setShowOnboarding(true)} style={{ marginTop: 16 }}>
+              Restart Setup Wizard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="root" data-theme={theme}>
+      {/* SIDEBAR */}
+      <div className="sidebar">
+        <div className="header">
+          <div className="logo">CodeVault</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              title="Settings"
+            >{I.settings(16, 'var(--text2)')}</button>
+            <button
+              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            >
+              {theme === 'dark' ? I.sun(16, 'var(--text2)') : I.moon(16, 'var(--text2)')}
+            </button>
+          </div>
+        </div>
+        <div className="search-box">
+          <input
+            className="input"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="node-list">
+          {filteredNodes.map(node => (
+            <div
+              key={node.id}
+              className={`node-item ${selectedNode?.id === node.id ? 'selected' : ''}`}
+              onClick={() => handleNodeClick(node)}
+            >
+              <div
+                className="node-item-icon"
+                style={{
+                  backgroundColor:
+                    node.type === 'page' ? 'var(--route)' :
+                    node.type === 'api' ? 'var(--api)' :
+                    node.domain ? 'var(--table)' :
+                    node.funcs ? 'var(--action)' :
+                    'var(--accent)'
+                }}
+              />
+              <div className="node-item-text">{node.name}</div>
+              <div
+                className={`node-item-lock ${getOverall(node.id)}`}
+                style={{
+                  backgroundColor:
+                    getOverall(node.id) === 'locked' ? 'var(--locked)' :
+                    getOverall(node.id) === 'caution' ? 'var(--caution)' :
+                    'var(--open)',
+                  color: '#fff'
+                }}
+              >
+                {getOverall(node.id) === 'locked' ? I.lock(10, '#fff') :
+                 getOverall(node.id) === 'caution' ? I.alert(10, '#fff') :
+                 I.check(10, '#fff')}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div className="main">
+        {/* TOOLBAR */}
+        <div className="toolbar">
+          <div className="view-tabs">
+            {['overview', 'grid', 'architecture', 'userflow', 'dataflow', 'audit'].map(tab => (
+              <button
+                key={tab}
+                className={`tab-btn ${currentView === tab ? 'active' : ''}`}
+                onClick={() => setCurrentView(tab)}
+              >
+                {tab === 'overview' && 'Overview'}
+                {tab === 'grid' && 'Lock Grid'}
+                {tab === 'architecture' && 'Architecture'}
+                {tab === 'userflow' && 'User Flow'}
+                {tab === 'dataflow' && 'Data Flow'}
+                {tab === 'audit' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.clipboard(13)} Audit Log</span>}
+              </button>
+            ))}
+          </div>
+
+          <div className="control-group">
+            <div style={{ display: 'flex', gap: 2, background: 'var(--panel2)', borderRadius: 6, padding: 2 }}>
+              <button onClick={() => setActiveEnv('staging')}
+                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: activeEnv === 'staging' ? 'var(--accent)' : 'transparent',
+                  color: activeEnv === 'staging' ? '#fff' : 'var(--text3)' }}>
+                {I.hardhat(12, activeEnv === 'staging' ? '#fff' : 'var(--text3)')} Staging
+              </button>
+              <button onClick={() => setActiveEnv('production')}
+                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: activeEnv === 'production' ? 'var(--open)' : 'transparent',
+                  color: activeEnv === 'production' ? '#fff' : 'var(--text3)' }}>
+                {I.globe(12, activeEnv === 'production' ? '#fff' : 'var(--text3)')} Production
+              </button>
+            </div>
+            {!connected ? (
+              <button className="btn" onClick={connectToFile} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {I.folder(13, '#fff')} Connect File
+              </button>
+            ) : (
+              <button className="btn secondary" onClick={disconnectFile} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {I.disconnect(13)} Disconnect
+              </button>
+            )}
+            <button className="btn secondary" onClick={handleExport} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              {I.download(13)} Export JSON
+            </button>
+            <label className="btn secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              {I.upload(13)} Import JSON
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportFile}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* CONTENT */}
+        <div className="content">
+          <div className="view-container">
+            {currentView === 'overview' && (
+              <div className="view-content" style={{ padding: '16px' }}>
+                <h2>Overview</h2>
+                <p style={{ marginTop: '12px', marginBottom: '24px', color: 'var(--text2)' }}>
+                  {ROUTES.length} pages • {API_ROUTES.length} API routes • {TABLES.length} tables • {SERVER_ACTIONS.length} server actions
+                </p>
+
+                {/* Codebase Overview */}
+                <h3 style={{ marginTop: '20px', marginBottom: '12px' }}>Codebase Overview</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent)' }}>
+                      {(TOTAL_CODEBASE_LINES || SERVER_ACTIONS.reduce((sum, sa) => sum + (sa.lines || 0), 0)).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Total Lines of Code</div>
+                    {TOTAL_CODEBASE_LINES && <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{SERVER_ACTIONS.reduce((sum, sa) => sum + (sa.lines || 0), 0).toLocaleString()} in server actions</div>}
+                  </div>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--action)' }}>
+                      {SERVER_ACTIONS.reduce((sum, sa) => sum + (sa.funcs?.length || 0), 0)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Total Functions</div>
+                  </div>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--route)' }}>
+                      {allNodes.length}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Total Items Tracked</div>
+                  </div>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--table)' }}>
+                      {TABLES.reduce((sum, t) => sum + (t.reads || 0) + (t.writes || 0), 0)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>DB Connections</div>
+                  </div>
+                </div>
+
+                <h3 style={{ marginTop: '20px', marginBottom: '12px' }}>Lock Status Summary</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', color: 'var(--locked)', fontWeight: '600' }}>
+                      {allNodes.filter(n => getOverall(n.id) === 'locked').length}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Locked</div>
+                  </div>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', color: 'var(--caution)', fontWeight: '600' }}>
+                      {allNodes.filter(n => getOverall(n.id) === 'caution').length}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Caution</div>
+                  </div>
+                  <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '24px', color: 'var(--open)', fontWeight: '600' }}>
+                      {allNodes.filter(n => getOverall(n.id) === 'open').length}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Open</div>
+                  </div>
+                </div>
+
+                <h3 style={{ marginTop: '20px', marginBottom: '12px' }}>Project Info</h3>
+                <div style={{ background: 'var(--panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}>
+                  <div style={{ marginBottom: '8px' }}><strong>Project:</strong> {_d.projectName || 'My Project'}</div>
+                  <div style={{ marginBottom: '8px' }}><strong>Framework:</strong> {_d.framework || 'generic'}</div>
+                  <div style={{ marginBottom: '8px' }}><strong>Environments:</strong> {envUrls.staging || '—'} (staging) {envUrls.production ? ' • ' + envUrls.production + ' (prod)' : ''}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><strong>Status:</strong> {connected ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--open)' }}>{I.checkCircle(13, 'var(--open)')} Connected to LOCK_CONFIG.json</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text3)' }}>{I.circle(13, 'var(--text3)')} No file connected</span>}</div>
+                </div>
+              </div>
+            )}
+
+            {currentView === 'grid' && (
+              <div className="grid">
+                {filteredNodes.map(node => (
+                  <div
+                    key={node.id}
+                    className="card"
+                    onClick={() => handleNodeClick(node)}
+                  >
+                    <div className="card-title">
+                      <div
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '3px',
+                          backgroundColor:
+                            node.type === 'page' ? 'var(--route)' :
+                            node.type === 'api' ? 'var(--api)' :
+                            node.domain ? 'var(--table)' :
+                            node.funcs ? 'var(--action)' :
+                            'var(--accent)'
+                        }}
+                      />
+                      {node.name}
+                    </div>
+                    {node.path ? (
+                      <a href={`${envUrls[activeEnv]}/${cleanPath(node.path)}`} target="_blank" rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        style={{ fontSize: '12px', color: 'var(--accent)', marginBottom: '8px', display: 'block', textDecoration: 'none' }}
+                        onMouseOver={e => e.target.style.textDecoration = 'underline'}
+                        onMouseOut={e => e.target.style.textDecoration = 'none'}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{activeEnv === 'staging' ? I.hardhat(11, 'var(--accent)') : I.globe(11, 'var(--accent)')} /{cleanPath(node.path)}</span>
+                      </a>
+                    ) : (
+                      <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>{node.id}</div>
+                    )}
+                    <div className="card-meta">
+                      <span
+                        className={`lock-indicator ${getOverall(node.id)}`}
+                      >
+                        {getOverall(node.id) === 'locked' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.lock(12, 'var(--locked)')} Locked</span>}
+                        {getOverall(node.id) === 'caution' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.alert(12, 'var(--caution)')} Caution</span>}
+                        {getOverall(node.id) === 'open' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.check(12, 'var(--open)')} Open</span>}
+                      </span>
+                      {node.group && <span className="card-badge">{node.group}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentView === 'architecture' && (
+              <ArchitectureGraph
+                allNodes={allNodes}
+                locks={locks}
+                getOverall={getOverall}
+                onNodeClick={handleNodeClick}
+              />
+            )}
+
+            {currentView === 'userflow' && (
+              <UserFlowGraph
+                allNodes={allNodes}
+                locks={locks}
+                getOverall={getOverall}
+                onNodeClick={handleNodeClick}
+              />
+            )}
+
+            {currentView === 'dataflow' && (
+              <div style={{ padding: '20px', overflowY: 'auto', height: '100%' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Data Flow Map</h2>
+                <p style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '16px' }}>
+                  Shows how server actions flow to database tables. Click any row for lock details.
+                </p>
+                {SERVER_ACTIONS.length === 0 && (
+                  <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)' }}>
+                    No server actions found. Run <code>node setup.mjs</code> to scan your codebase.
+                  </div>
+                )}
+                {SERVER_ACTIONS.map((sa, i) => {
+                  const overall = getOverall(sa.id);
+                  return (
+                    <div key={i} style={{ marginBottom: '16px' }}>
+                      <div
+                        style={{ fontSize: '13px', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--action)', cursor: 'pointer' }}
+                        onClick={() => handleNodeClick(sa)}
+                      >
+                        {sa.name}
+                        <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '400' }}>
+                          {sa.lines ? sa.lines.toLocaleString() + ' lines' : ''}
+                        </span>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: LOCK_COLORS[overall] }} />
+                      </div>
+                      {(sa.funcs || []).map((fn, j) => (
+                        <div
+                          key={j}
+                          style={{ display: 'flex', alignItems: 'stretch', gap: 0, marginBottom: '4px', cursor: 'pointer', borderRadius: '8px' }}
+                          onClick={() => handleNodeClick(sa)}
+                        >
+                          <div style={{ flex: '0 0 200px', padding: '7px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(249,115,22,.08)', border: '1px solid rgba(249,115,22,.2)', borderRadius: '8px 0 0 8px' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--action)', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fn}()</span>
+                          </div>
+                          <div style={{ flex: '0 0 36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{I.arrowRight(14, LOCK_COLORS[overall])}</div>
+                          <div style={{ flex: 1, padding: '7px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap', background: 'rgba(168,85,247,.08)', border: '1px solid rgba(168,85,247,.2)', borderRadius: '0 8px 8px 0' }}>
+                            {(sa.tables || []).map((t, k) => (
+                              <span key={k} style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(168,85,247,.15)', color: '#C084FC', whiteSpace: 'nowrap' }}>{t}</span>
+                            ))}
+                            {(!sa.tables || sa.tables.length === 0) && <span style={{ color: 'var(--text3)' }}>No tables detected</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {currentView === 'audit' && (
+              <AuditLogView
+                auditLog={auditLog}
+                setAuditLog={setAuditLog}
+                allNodes={allNodes}
+                onNodeClick={handleNodeClick}
+              />
+            )}
+          </div>
+
+          {/* DETAIL PANEL */}
+          {showDetail && selectedNode && (
+            <div className="detail-panel">
+              <div className="detail-header">
+                <div>
+                  <div className="detail-title">{selectedNode.name}</div>
+                  {selectedNode.path ? (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                      {(selectedNode.type === 'page' || selectedNode.type === 'api') && [
+                        <a key="stg" href={`${envUrls.staging}/${cleanPath(selectedNode.path)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 11, color: activeEnv === 'staging' ? 'var(--accent)' : 'var(--text3)', textDecoration: 'none', padding: '3px 8px', borderRadius: 4, border: `1px solid ${activeEnv === 'staging' ? 'var(--accent)' : 'var(--border)'}`, background: activeEnv === 'staging' ? 'rgba(91,154,160,.1)' : 'transparent' }}
+                          onMouseOver={e => e.target.style.textDecoration = 'underline'}
+                          onMouseOut={e => e.target.style.textDecoration = 'none'}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{I.hardhat(11, activeEnv === 'staging' ? 'var(--accent)' : 'var(--text3)')} Staging</span>
+                        </a>,
+                        envUrls.production && <a key="prod" href={`${envUrls.production}/${cleanPath(selectedNode.path)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 11, color: activeEnv === 'production' ? 'var(--open)' : 'var(--text3)', textDecoration: 'none', padding: '3px 8px', borderRadius: 4, border: `1px solid ${activeEnv === 'production' ? 'var(--open)' : 'var(--border)'}`, background: activeEnv === 'production' ? 'rgba(22,163,74,.1)' : 'transparent' }}
+                          onMouseOver={e => e.target.style.textDecoration = 'underline'}
+                          onMouseOut={e => e.target.style.textDecoration = 'none'}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{I.globe(11, activeEnv === 'production' ? 'var(--open)' : 'var(--text3)')} Production</span>
+                        </a>
+                      ]}
+                      {selectedNode.domain && !selectedNode.funcs && (
+                        <span style={{ fontSize: 11, color: 'var(--table)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(168,85,247,.3)', background: 'rgba(168,85,247,.08)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>{I.database(11, 'var(--table)')} {selectedNode.name}</span>
+                      )}
+                      {selectedNode.funcs && (
+                        <span style={{ fontSize: 11, color: 'var(--action)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(249,115,22,.3)', background: 'rgba(249,115,22,.08)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>{I.code(11, 'var(--action)')} {selectedNode.path}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>{selectedNode.id}</div>
+                  )}
+                </div>
+                <button className="detail-close" onClick={() => setShowDetail(false)} style={{ display: 'flex', alignItems: 'center' }}>{I.x(16, 'var(--text2)')}</button>
+              </div>
+              <div className="detail-body">
+                {/* Lock Controls */}
+                <div className="detail-section">
+                  <div className="detail-section-title">Lock State</div>
+                  <div className="lock-controls">
+                    {['ui', 'logic', 'data'].map(layer => (
+                      <div key={layer} style={{ flex: 1 }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>
+                          {layer}
+                        </div>
+                        <div className="layer-lock-btns">
+                          {['locked', 'caution', 'open'].map(state => (
+                            <button
+                              key={state}
+                              className={`layer-lock-btn ${state}`}
+                              onClick={() => updateLock(selectedNode.id, layer, state)}
+                              style={{
+                                backgroundColor:
+                                  (locks[selectedNode.id]?.[layer] || 'locked') === state
+                                    ? state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)'
+                                    : 'transparent',
+                                color:
+                                  (locks[selectedNode.id]?.[layer] || 'locked') === state ? '#fff' : 'var(--text2)',
+                                borderColor:
+                                  state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)',
+                                fontWeight:
+                                  (locks[selectedNode.id]?.[layer] || 'locked') === state ? '600' : '500'
+                              }}
+                            >
+                              {state === 'locked' ? I.lock(12) : state === 'caution' ? I.alert(12) : I.check(12)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="detail-section">
+                  <div className="detail-section-title">Type</div>
+                  <div className="detail-section-content">
+                    {selectedNode.type === 'page' && 'Page (Route)'}
+                    {selectedNode.type === 'api' && 'API Route'}
+                    {selectedNode.domain && !selectedNode.funcs && 'Database Table'}
+                    {selectedNode.funcs && 'Server Actions'}
+                  </div>
+                </div>
+
+                {selectedNode.group && (
+                  <div className="detail-section">
+                    <div className="detail-section-title">Group</div>
+                    <div className="detail-section-content">{selectedNode.group}</div>
+                  </div>
+                )}
+
+                {selectedNode.tables && (
+                  <div className="detail-section">
+                    <div className="detail-section-title">Tables</div>
+                    <div className="detail-section-content">
+                      {selectedNode.tables.join(', ')}
+                    </div>
+                  </div>
+                )}
+
+                {selectedNode.funcs && (
+                  <div className="detail-section">
+                    <div className="detail-section-title">Functions</div>
+                    <div className="detail-section-content">
+                      {selectedNode.funcs.join(', ')}
+                    </div>
+                  </div>
+                )}
+
+                {selectedNode.domain && (
+                  <div className="detail-section">
+                    <div className="detail-section-title">Domain</div>
+                    <div className="detail-section-content">{selectedNode.domain}</div>
+                  </div>
+                )}
+
+                {selectedNode.reads !== undefined && (
+                  <div className="detail-section">
+                    <div className="detail-section-title">Read by</div>
+                    <div className="detail-section-content">{selectedNode.reads} files</div>
+                  </div>
+                )}
+
+                {selectedNode.writes !== undefined && (
+                  <div className="detail-section">
+                    <div className="detail-section-title">Written by</div>
+                    <div className="detail-section-content">{selectedNode.writes} files</div>
+                  </div>
+                )}
+
+                {/* Audit History for this item */}
+                {(() => {
+                  const itemLog = auditLog.filter(l => l.target === selectedNode.id).reverse().slice(0, 20);
+                  if (itemLog.length === 0) return (
+                    <div className="detail-section">
+                      <div className="detail-section-title">Change History</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', padding: '8px 0' }}>No changes recorded for this item yet.</div>
+                    </div>
+                  );
+                  return (
+                    <div className="detail-section">
+                      <div className="detail-section-title">Change History ({itemLog.length > 20 ? '20 most recent' : itemLog.length})</div>
+                      {itemLog.map(entry => (
+                        <div key={entry.id} className="audit-detail-row">
+                          <div className="audit-detail-time">
+                            {(() => { try { const d = new Date(entry.timestamp); return d.toLocaleDateString(undefined, { month:'short', day:'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }); } catch(e) { return entry.timestamp; }})()}
+                          </div>
+                          <span className="audit-tag" style={{ background: 'var(--panel2)', color: 'var(--accent)', textTransform: 'uppercase', fontSize: '10px' }}>{entry.layer}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px' }}>
+                            <span className="audit-tag" style={{ background: entry.from === 'locked' ? 'var(--lockedBg)' : entry.from === 'caution' ? 'var(--cautionBg)' : 'var(--openBg)', color: entry.from === 'locked' ? 'var(--locked)' : entry.from === 'caution' ? 'var(--caution)' : 'var(--open)', fontSize: '10px' }}>{entry.from}</span>
+                            <span style={{ color: 'var(--text3)', display: 'inline-flex', alignItems: 'center' }}>{I.arrowRight(10, 'var(--text3)')}</span>
+                            <span className="audit-tag" style={{ background: entry.to === 'locked' ? 'var(--lockedBg)' : entry.to === 'caution' ? 'var(--cautionBg)' : 'var(--openBg)', color: entry.to === 'locked' ? 'var(--locked)' : entry.to === 'caution' ? 'var(--caution)' : 'var(--open)', fontSize: '10px' }}>{entry.to}</span>
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'var(--text3)', marginLeft: 'auto' }}>{entry.source}</span>
+                        </div>
+                      ))}
+                      {auditLog.filter(l => l.target === selectedNode.id).length > 20 && (
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', padding: '6px 0', textAlign: 'center' }}>
+                          Showing 20 most recent. View full history in Audit Log tab.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SETTINGS MODAL */}
+      {showSettings && (
+        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="modal" style={{ minWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{I.settings(18, 'var(--accent)')} CodeVault Settings</div>
+            <div className="modal-content">
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Environment URLs</div>
+                <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>
+                  Configure your staging and production URLs. These make item paths clickable throughout the app.
+                </p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 4 }}>{I.hardhat(12, 'var(--text2)')} Staging URL</label>
+                <input
+                  className="input"
+                  style={{ width: '100%', marginBottom: 12 }}
+                  placeholder="http://localhost:3000"
+                  defaultValue={envUrls.staging}
+                  id="cv-settings-staging"
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 4 }}>{I.globe(12, 'var(--text2)')} Production URL</label>
+                <input
+                  className="input"
+                  style={{ width: '100%' }}
+                  placeholder="https://yourapp.com"
+                  defaultValue={envUrls.production}
+                  id="cv-settings-production"
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 14 }}>Project Info</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)' }}>
+                  <strong>Project:</strong> {_d.projectName || 'My Project'}<br/>
+                  <strong>Framework:</strong> {_d.framework || 'generic'}<br/>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><strong>File Status:</strong> {connected ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--open)' }}>{I.checkCircle(12, 'var(--open)')} Connected</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--text3)' }}>{I.circle(12, 'var(--text3)')} Not connected</span>}</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-buttons">
+              <button className="btn secondary" onClick={() => setShowSettings(false)}>Cancel</button>
+              <button className="btn" onClick={() => {
+                const stg = document.getElementById('cv-settings-staging')?.value || '';
+                const prod = document.getElementById('cv-settings-production')?.value || '';
+                const newUrls = { staging: stg.replace(/\/+$/, ''), production: prod.replace(/\/+$/, '') };
+                setEnvUrls(newUrls);
+                try { localStorage.setItem('cv-env-urls', JSON.stringify(newUrls)); } catch(e) {}
+                setShowSettings(false);
+              }}>Save Settings</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {showToast && <div className="toast" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{I.check(14, '#fff')} Saved to LOCK_CONFIG.json</div>}
+    </div>
+  );
+}
+
+ReactDOM.render(<CodeVault />, document.getElementById('app'));
+</script>
+</body>
+</html>

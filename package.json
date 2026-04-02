@@ -1,0 +1,50 @@
+{
+  "name": "codevault",
+  "version": "1.0.0",
+  "description": "Universal three-layer lock control system for production codebases",
+  "type": "module",
+  "main": "setup.mjs",
+  "scripts": {
+    "setup": "node setup.mjs",
+    "setup:next": "node setup.mjs --framework 'next.js'",
+    "setup:sveltekit": "node setup.mjs --framework 'sveltekit'",
+    "setup:remix": "node setup.mjs --framework 'remix'",
+    "scan": "node setup.mjs"
+  },
+  "keywords": [
+    "lock",
+    "access-control",
+    "code-safety",
+    "codebase",
+    "production",
+    "framework-agnostic",
+    "next.js",
+    "sveltekit",
+    "remix"
+  ],
+  "author": "Ascendwise LLC",
+  "license": "MIT",
+  "dependencies": {
+    "glob": "^10.3.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ascendwiselabs/codevault"
+  },
+  "bugs": {
+    "url": "https://github.com/ascendwiselabs/codevault/issues"
+  },
+  "homepage": "https://github.com/ascendwiselabs/codevault#readme",
+  "files": [
+    "codevault.html",
+    "codevault-data.js",
+    "setup.mjs",
+    "CLAUDE.md",
+    "CLAUDE_LOCK_RULES.md",
+    "README.md",
+    "LICENSE"
+  ]
+}
