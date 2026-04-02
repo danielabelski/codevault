@@ -8,6 +8,7 @@
  *
  * Usage:
  *   node setup.mjs [--project-name "My Project"] [--framework "next.js"]
+ *   node setup.mjs --sync    (re-scan and merge new entries into existing LOCK_CONFIG.json)
  */
 
 import fs from 'fs';
@@ -61,6 +62,8 @@ const args = process.argv.slice(2);
 let projectName = null;
 let framework = null;
 
+let syncMode = false;
+
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--project-name' && args[i + 1]) {
     projectName = args[i + 1];
@@ -69,6 +72,9 @@ for (let i = 0; i < args.length; i++) {
   if (args[i] === '--framework' && args[i + 1]) {
     framework = args[i + 1];
     i++;
+  }
+  if (args[i] === '--sync') {
+    syncMode = true;
   }
 }
 
@@ -233,56 +239,186 @@ const outputPath = path.join(__dirname, 'codevault-data.js');
 fs.writeFileSync(outputPath, output, 'utf-8');
 console.log(`\n> Generated ${outputPath}`);
 
-// Also generate LOCK_CONFIG.json for Claude enforcement
-const lockConfig = {
-  _version: '1.1',
-  _description: 'CodeVault Lock Configuration. Controls which files AI agents can modify. Read by CLAUDE.md enforcement rules.',
-  _generated: new Date().toISOString(),
-  _framework: framework,
-  _mobileStrategy: mobileStrategy,
-  _platforms: {
-    web: 'Web application (React, Next.js, Vue, HTML/CSS, browser JS/TS)',
-    ios: 'Native iOS (Swift, SwiftUI, UIKit, or Capacitor iOS shell)',
-    android: 'Native Android (Kotlin, Jetpack Compose, or Capacitor Android shell)',
-    backend: 'Server-side (APIs, server actions, databases, middleware)',
-    shared: 'Cross-platform (utilities, types, configs, database tables)'
-  },
-  _states: {
-    locked: 'DO NOT MODIFY — Protected from all AI changes.',
-    caution: 'ASK FIRST — Require explicit user confirmation before any change.',
-    open: 'EDITABLE — AI can modify freely.'
-  },
-  _layers: {
-    ui: 'Visual layout, styling, CSS classes, component structure',
-    logic: 'Business rules, validation, calculations, workflows, state management',
-    data: 'Database queries, API calls, data transformations'
-  },
-  routes: {},
-  serverActions: {},
-  tables: {},
-  apiRoutes: {},
-  directoryRules: [
-    { pattern: 'src/components/ui/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Shared UI components' },
-    { pattern: 'src/lib/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core library code' },
-    { pattern: '*.config.*', ui: 'locked', logic: 'locked', data: 'locked', note: 'Config files' },
-    { pattern: '.env*', ui: 'locked', logic: 'locked', data: 'locked', note: 'Environment variables' }
-  ]
-};
-
-routes.forEach(r => { lockConfig.routes[r.id] = { path: r.path, name: r.name, platform: r.platform || 'web', ui: 'locked', logic: 'locked', data: 'locked' }; });
-apiRoutes.forEach(a => { lockConfig.apiRoutes[a.id] = { path: a.path, name: a.name, platform: a.platform || 'backend', ui: 'locked', logic: 'locked', data: 'locked' }; });
-tables.forEach(t => { lockConfig.tables[t.id] = { path: '', name: t.name, platform: t.platform || 'shared', ui: 'locked', logic: 'locked', data: 'locked' }; });
-serverActions.forEach(sa => { lockConfig.serverActions[sa.id] = { path: sa.path, name: sa.name, platform: sa.platform || 'backend', ui: 'locked', logic: 'locked', data: 'locked' }; });
-
+// Also generate or sync LOCK_CONFIG.json for Claude enforcement
 const lockPath = path.join(process.cwd(), 'LOCK_CONFIG.json');
-fs.writeFileSync(lockPath, JSON.stringify(lockConfig, null, 2), 'utf-8');
-console.log(`> Generated ${lockPath}`);
 
-console.log(`\nNext steps:`);
-console.log(`  1. Open codevault.html in Chrome/Edge`);
-console.log(`  2. Click "Connect File" and select LOCK_CONFIG.json`);
-console.log(`  3. Toggle locks — changes auto-save`);
-console.log(`  4. Copy CLAUDE_LOCK_RULES.md into your CLAUDE.md\n`);
+if (syncMode) {
+  // ═══════════════════════════════════════════
+  // SYNC MODE: Merge new entries into existing LOCK_CONFIG.json
+  // Preserves existing lock states, adds new entries as locked, removes stale entries
+  // ═══════════════════════════════════════════
+  let existing = null;
+  try {
+    existing = JSON.parse(fs.readFileSync(lockPath, 'utf-8'));
+  } catch(e) {
+    console.log('\n[!] No existing LOCK_CONFIG.json found. Running full setup instead.\n');
+  }
+
+  if (existing) {
+    const allScannedRoutes = new Set(routes.map(r => r.id));
+    const allScannedApis = new Set(apiRoutes.map(a => a.id));
+    const allScannedTables = new Set(tables.map(t => t.id));
+    const allScannedActions = new Set(serverActions.map(sa => sa.id));
+
+    let added = 0;
+    let removed = 0;
+    let preserved = 0;
+
+    // Add new routes not in existing config
+    routes.forEach(r => {
+      if (!existing.routes[r.id]) {
+        existing.routes[r.id] = { path: r.path, name: r.name, platform: r.platform || 'web', ui: 'locked', logic: 'locked', data: 'locked' };
+        added++;
+        console.log(`  + NEW route: ${r.name} (${r.id})`);
+      } else {
+        preserved++;
+      }
+    });
+
+    // Add new API routes
+    apiRoutes.forEach(a => {
+      if (!existing.apiRoutes[a.id]) {
+        existing.apiRoutes[a.id] = { path: a.path, name: a.name, platform: a.platform || 'backend', ui: 'locked', logic: 'locked', data: 'locked' };
+        added++;
+        console.log(`  + NEW API route: ${a.name} (${a.id})`);
+      } else {
+        preserved++;
+      }
+    });
+
+    // Add new tables
+    tables.forEach(t => {
+      if (!existing.tables[t.id]) {
+        existing.tables[t.id] = { path: '', name: t.name, platform: t.platform || 'shared', ui: 'locked', logic: 'locked', data: 'locked' };
+        added++;
+        console.log(`  + NEW table: ${t.name} (${t.id})`);
+      } else {
+        preserved++;
+      }
+    });
+
+    // Add new server actions / library files
+    serverActions.forEach(sa => {
+      if (!existing.serverActions[sa.id]) {
+        existing.serverActions[sa.id] = { path: sa.path, name: sa.name, platform: sa.platform || 'backend', ui: 'locked', logic: 'locked', data: 'locked' };
+        if (sa.funcs) existing.serverActions[sa.id].funcs = sa.funcs;
+        if (sa.group) existing.serverActions[sa.id].group = sa.group;
+        added++;
+        console.log(`  + NEW server action: ${sa.name} (${sa.id})`);
+      } else {
+        preserved++;
+      }
+    });
+
+    // Detect stale entries (in config but not in scan)
+    const staleRoutes = Object.keys(existing.routes || {}).filter(id => !allScannedRoutes.has(id));
+    const staleApis = Object.keys(existing.apiRoutes || {}).filter(id => !allScannedApis.has(id));
+    const staleTables = Object.keys(existing.tables || {}).filter(id => !allScannedTables.has(id));
+    const staleActions = Object.keys(existing.serverActions || {}).filter(id => !allScannedActions.has(id));
+    const totalStale = staleRoutes.length + staleApis.length + staleTables.length + staleActions.length;
+
+    if (totalStale > 0) {
+      console.log(`\n  [!] ${totalStale} stale entries detected (files no longer exist in codebase):`);
+      staleRoutes.forEach(id => console.log(`    - route: ${id}`));
+      staleApis.forEach(id => console.log(`    - api: ${id}`));
+      staleTables.forEach(id => console.log(`    - table: ${id}`));
+      staleActions.forEach(id => console.log(`    - action: ${id}`));
+      console.log(`    → Stale entries are preserved (not auto-deleted). Remove manually if desired.`);
+    }
+
+    // Log sync event in _auditLog
+    if (!existing._auditLog) existing._auditLog = [];
+    if (added > 0) {
+      existing._auditLog.push({
+        timestamp: new Date().toISOString(),
+        entry: 'system.sync',
+        layers: ['ui', 'logic', 'data'],
+        previousState: { ui: 'untracked', logic: 'untracked', data: 'untracked' },
+        newState: { ui: 'locked', logic: 'locked', data: 'locked' },
+        reason: `Sync detected ${added} new entries. ${totalStale} stale entries preserved.`,
+        approvedBy: 'system',
+        session: 'setup-sync'
+      });
+    }
+
+    existing._updated = new Date().toISOString();
+
+    fs.writeFileSync(lockPath, JSON.stringify(existing, null, 2), 'utf-8');
+    console.log(`\n> Synced ${lockPath}`);
+    console.log(`  ${added} new entries added (locked by default)`);
+    console.log(`  ${preserved} existing entries preserved (lock states unchanged)`);
+    if (totalStale > 0) console.log(`  ${totalStale} stale entries preserved (review manually)`);
+  } else {
+    // Fallback to full generation if no existing file
+    writeFreshLockConfig();
+  }
+} else {
+  // ═══════════════════════════════════════════
+  // FRESH MODE: Generate new LOCK_CONFIG.json from scratch
+  // ═══════════════════════════════════════════
+  writeFreshLockConfig();
+}
+
+function writeFreshLockConfig() {
+  const lockConfig = {
+    _version: '1.1',
+    _description: 'CodeVault Lock Configuration. Controls which files AI agents can modify. Read by CLAUDE.md enforcement rules.',
+    _generated: new Date().toISOString(),
+    _framework: framework,
+    _mobileStrategy: mobileStrategy,
+    _platforms: {
+      web: 'Web application (React, Next.js, Vue, HTML/CSS, browser JS/TS)',
+      ios: 'Native iOS (Swift, SwiftUI, UIKit, or Capacitor iOS shell)',
+      android: 'Native Android (Kotlin, Jetpack Compose, or Capacitor Android shell)',
+      backend: 'Server-side (APIs, server actions, databases, middleware)',
+      shared: 'Cross-platform (utilities, types, configs, database tables)'
+    },
+    _states: {
+      locked: 'DO NOT MODIFY — Protected from all AI changes.',
+      caution: 'ASK FIRST — Require explicit user confirmation before any change.',
+      open: 'EDITABLE — AI can modify freely.'
+    },
+    _layers: {
+      ui: 'Visual layout, styling, CSS classes, component structure',
+      logic: 'Business rules, validation, calculations, workflows, state management',
+      data: 'Database queries, API calls, data transformations'
+    },
+    routes: {},
+    serverActions: {},
+    tables: {},
+    apiRoutes: {},
+    _auditLog: [],
+    directoryRules: [
+      { pattern: 'src/components/ui/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Shared UI components' },
+      { pattern: 'src/lib/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core library code' },
+      { pattern: '*.config.*', ui: 'locked', logic: 'locked', data: 'locked', note: 'Config files' },
+      { pattern: '.env*', ui: 'locked', logic: 'locked', data: 'locked', note: 'Environment variables' }
+    ]
+  };
+
+  routes.forEach(r => { lockConfig.routes[r.id] = { path: r.path, name: r.name, platform: r.platform || 'web', ui: 'locked', logic: 'locked', data: 'locked' }; });
+  apiRoutes.forEach(a => { lockConfig.apiRoutes[a.id] = { path: a.path, name: a.name, platform: a.platform || 'backend', ui: 'locked', logic: 'locked', data: 'locked' }; });
+  tables.forEach(t => { lockConfig.tables[t.id] = { path: '', name: t.name, platform: t.platform || 'shared', ui: 'locked', logic: 'locked', data: 'locked' }; });
+  serverActions.forEach(sa => {
+    const entry = { path: sa.path, name: sa.name, platform: sa.platform || 'backend', ui: 'locked', logic: 'locked', data: 'locked' };
+    if (sa.funcs) entry.funcs = sa.funcs;
+    if (sa.group) entry.group = sa.group;
+    lockConfig.serverActions[sa.id] = entry;
+  });
+
+  fs.writeFileSync(lockPath, JSON.stringify(lockConfig, null, 2), 'utf-8');
+  console.log(`> Generated ${lockPath}`);
+}
+
+if (!syncMode) {
+  console.log(`\nNext steps:`);
+  console.log(`  1. Open codevault.html in Chrome/Edge`);
+  console.log(`  2. Click "Connect File" and select LOCK_CONFIG.json`);
+  console.log(`  3. Toggle locks — changes auto-save`);
+  console.log(`  4. Copy CLAUDE_LOCK_RULES.md into your CLAUDE.md\n`);
+} else {
+  console.log(`\nSync complete. Refresh the CodeVault dashboard to see new entries.\n`);
+}
 
 // ════════════════════════════════════════════
 // HELPER FUNCTIONS

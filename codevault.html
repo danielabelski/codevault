@@ -89,6 +89,12 @@ select.input option{background:var(--panel);color:var(--text);padding:6px}
 .lock-indicator.locked{background:var(--lockedBg);color:var(--locked);border:1px solid var(--lockedBorder)}
 .lock-indicator.caution{background:var(--cautionBg);color:var(--caution);border:1px solid var(--cautionBorder)}
 .lock-indicator.open{background:var(--openBg);color:var(--open);border:1px solid var(--openBorder)}
+.card.pending-unlock{border:1.5px solid #F59E0B;box-shadow:0 0 12px rgba(245,158,11,0.25);position:relative}
+.card.pending-unlock::before{content:'';position:absolute;inset:-1px;border-radius:inherit;border:1.5px solid #F59E0B;animation:pendingPulse 2s ease-in-out infinite;pointer-events:none}
+@keyframes pendingPulse{0%,100%{opacity:0.4;box-shadow:0 0 8px rgba(245,158,11,0.15)}50%{opacity:1;box-shadow:0 0 16px rgba(245,158,11,0.35)}}
+.pending-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(245,158,11,0.15);color:#F59E0B;text-transform:uppercase;letter-spacing:0.5px}
+.pending-banner{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;margin-bottom:12px;font-size:13px;color:#F59E0B}
+.pending-banner strong{color:#F59E0B}
 /* DETAIL PANEL */
 .detail-panel{width:400px;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
 .detail-header{padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
@@ -233,6 +239,7 @@ const I = {
   trash: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   disconnect: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><line x1="2" y1="2" x2="22" y2="22"/></svg>,
   arrowRight: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+  refresh: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
 };
 
 // Environment URLs — loaded from localStorage override, then codevault-data.js, then defaults
@@ -1373,8 +1380,10 @@ function CodeVault() {
   const [activeEnv, setActiveEnv] = useState('staging');
   const [locks, setLocks] = useState({});
   const [connected, setConnected] = useState(false);
+  const [syncCopied, setSyncCopied] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [pendingUnlocks, setPendingUnlocks] = useState([]);
   const [activePlatform, setActivePlatform] = useState('all');
   const [auditLog, setAuditLog] = useState(() => {
     try { const s = localStorage.getItem('cv-audit-log'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
@@ -1468,7 +1477,8 @@ function CodeVault() {
       directoryRules: [
         { pattern: 'src/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core source code' }
       ],
-      _auditLog: fileAuditLog.current || []
+      _auditLog: fileAuditLog.current || [],
+      _pendingUnlocks: pendingUnlocks.length > 0 ? pendingUnlocks : undefined
     };
 
     allNodes.forEach(n => {
@@ -1539,6 +1549,13 @@ function CodeVault() {
           })).filter(e => !existingKeys.has(e.timestamp + '|' + e.target + '|' + e.layer));
           return [...prev, ...newEntries];
         });
+      }
+
+      // Read _pendingUnlocks from file
+      if (cfg._pendingUnlocks && Array.isArray(cfg._pendingUnlocks)) {
+        setPendingUnlocks(cfg._pendingUnlocks);
+      } else {
+        setPendingUnlocks([]);
       }
 
       return newLocks;
@@ -1651,6 +1668,15 @@ function CodeVault() {
     if (s.ui === 'caution' || s.logic === 'caution' || s.data === 'caution') return 'caution';
     return 'open';
   }, [locks, activePlatform]);
+
+  // Check if a node has pending unlock requests from AI agents
+  const getPendingUnlock = useCallback((nodeId) => {
+    return pendingUnlocks.find(p => {
+      // Match entry format: "section.id" or just "id"
+      const entryId = p.entry || '';
+      return entryId === nodeId || entryId.endsWith('.' + nodeId);
+    });
+  }, [pendingUnlocks]);
 
   const logAuditEntry = useCallback((nodeId, layer, fromState, toState, source = 'codevault-ui', reason = '') => {
     const node = allNodes.find(n => n.id === nodeId);
@@ -1899,6 +1925,16 @@ function CodeVault() {
                 style={{ display: 'none' }}
               />
             </label>
+            <button className="btn secondary" onClick={() => {
+              const cmd = 'node setup.mjs --sync';
+              navigator.clipboard.writeText(cmd).then(() => {
+                setSyncCopied(true);
+                setTimeout(() => setSyncCopied(false), 2000);
+              }).catch(() => {});
+            }} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, position: 'relative' }}
+              title="Re-scan your codebase for new files and merge them into LOCK_CONFIG.json">
+              {I.refresh(13)} {syncCopied ? 'Copied!' : 'Sync Codebase'}
+            </button>
           </div>
         </div>
 
@@ -1979,7 +2015,7 @@ function CodeVault() {
                 {filteredNodes.map(node => (
                   <div
                     key={node.id}
-                    className="card"
+                    className={`card${getPendingUnlock(node.id) ? ' pending-unlock' : ''}`}
                     onClick={() => handleNodeClick(node)}
                   >
                     <div className="card-title">
@@ -2014,6 +2050,11 @@ function CodeVault() {
                       <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>{node.id}</div>
                     )}
                     <div className="card-meta">
+                      {getPendingUnlock(node.id) && (
+                        <span className="pending-badge" title={getPendingUnlock(node.id).reason || 'AI agent requests unlock'}>
+                          {I.alert(10, '#F59E0B')} Unlock Requested
+                        </span>
+                      )}
                       <span
                         className={`lock-indicator ${getOverall(node.id)}`}
                       >
