@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>CodeVault v1.0 — Universal Lock Control System</title>
+<title>CodeVault v1.1 — Universal Lock Control System</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -1336,10 +1336,18 @@ function CodeVault() {
     const allNodes = [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS];
     const initialLocks = {};
     allNodes.forEach(n => {
-      initialLocks[n.id] = { ui: 'locked', logic: 'locked', data: 'locked' };
+      initialLocks[n.id] = { _default: { ui: 'locked', logic: 'locked', data: 'locked' } };
     });
     setLocks(initialLocks);
   }, []);
+
+  const getLockForPlatform = useCallback((id, platform) => {
+    const entry = locks[id];
+    if (!entry) return {ui:'locked',logic:'locked',data:'locked'};
+    if (!platform || platform === 'all') return entry._default || entry;
+    if (entry[platform]) return entry[platform];
+    return entry._default || {ui:'locked',logic:'locked',data:'locked'};
+  }, [locks]);
 
   // Persist audit log to localStorage
   useEffect(() => {
@@ -1350,9 +1358,7 @@ function CodeVault() {
 
   const filteredNodes = useMemo(() => {
     let nodes = allNodes;
-    if (activePlatform !== 'all') {
-      nodes = nodes.filter(n => (n.platform || 'web') === activePlatform);
-    }
+    // Platform filter controls lock states, not node visibility
     if (!searchQuery.trim()) return nodes;
     const q = searchQuery.toLowerCase();
     return nodes.filter(n =>
@@ -1360,11 +1366,11 @@ function CodeVault() {
       n.id.toLowerCase().includes(q) ||
       (n.path && n.path.toLowerCase().includes(q))
     );
-  }, [allNodes, searchQuery, activePlatform]);
+  }, [allNodes, searchQuery]);
 
   const buildConfigJSON = useCallback((lockState) => {
     const cfg = {
-      version: '1.0.0',
+      version: '1.1.0',
       project: _d.projectName || 'My Project',
       framework: _d.framework || 'generic',
       description: 'Lock configuration for CodeVault. Three-layer access control: UI, Logic, Data.',
@@ -1395,8 +1401,16 @@ function CodeVault() {
     };
 
     allNodes.forEach(n => {
-      const sub = lockState[n.id] || { ui: 'locked', logic: 'locked', data: 'locked' };
-      const entry = { path: n.path || '', name: n.name, platform: n.platform || 'web', ui: sub.ui, logic: sub.logic, data: sub.data };
+      const lockEntry = lockState[n.id] || {_default:{ui:'locked',logic:'locked',data:'locked'}};
+      const def = lockEntry._default || {ui:'locked',logic:'locked',data:'locked'};
+      const entry = {path:n.path||'',name:n.name,platform:n.platform||'web',ui:def.ui,logic:def.logic,data:def.data};
+      const overrides = {};
+      ['web','ios','android','backend','shared'].forEach(p => {
+        if (lockEntry[p] && (lockEntry[p].ui !== def.ui || lockEntry[p].logic !== def.logic || lockEntry[p].data !== def.data)) {
+          overrides[p] = {ui:lockEntry[p].ui, logic:lockEntry[p].logic, data:lockEntry[p].data};
+        }
+      });
+      if (Object.keys(overrides).length > 0) entry.platformOverrides = overrides;
 
       if (n.type === 'page') cfg.routes[n.id] = entry;
       else if (n.type === 'api') cfg.apiRoutes[n.id] = entry;
@@ -1413,19 +1427,21 @@ function CodeVault() {
       const cfg = JSON.parse(json);
       const newLocks = {};
       allNodes.forEach(n => {
-        newLocks[n.id] = { ui: 'locked', logic: 'locked', data: 'locked' };
+        newLocks[n.id] = { _default: { ui: 'locked', logic: 'locked', data: 'locked' } };
       });
 
       const sections = [cfg.routes, cfg.serverActions, cfg.tables, cfg.apiRoutes];
       sections.forEach(section => {
         if (!section) return;
-        Object.entries(section).forEach(([id, val]) => {
+        Object.entries(section).forEach(([id, entry]) => {
           if (newLocks[id]) {
-            newLocks[id] = {
-              ui: val.ui || 'locked',
-              logic: val.logic || 'locked',
-              data: val.data || 'locked'
-            };
+            const lockEntry = {_default:{ui:entry.ui||'locked',logic:entry.logic||'locked',data:entry.data||'locked'}};
+            if (entry.platformOverrides) {
+              Object.entries(entry.platformOverrides).forEach(([p,s]) => {
+                lockEntry[p] = {ui:s.ui||'locked',logic:s.logic||'locked',data:s.data||'locked'};
+              });
+            }
+            newLocks[id] = lockEntry;
           }
         });
       });
@@ -1532,11 +1548,13 @@ function CodeVault() {
   }, [connected, importConfig, locks, logAuditEntry]);
 
   const getOverall = useCallback((id) => {
-    const sub = locks[id] || { ui: 'locked', logic: 'locked', data: 'locked' };
-    if (sub.ui === 'locked' || sub.logic === 'locked' || sub.data === 'locked') return 'locked';
-    if (sub.ui === 'caution' || sub.logic === 'caution' || sub.data === 'caution') return 'caution';
+    const entry = locks[id];
+    if (!entry) return 'locked';
+    const s = (activePlatform !== 'all' && entry[activePlatform]) ? entry[activePlatform] : (entry._default || {ui:'locked',logic:'locked',data:'locked'});
+    if (s.ui === 'locked' || s.logic === 'locked' || s.data === 'locked') return 'locked';
+    if (s.ui === 'caution' || s.logic === 'caution' || s.data === 'caution') return 'caution';
     return 'open';
-  }, [locks]);
+  }, [locks, activePlatform]);
 
   const logAuditEntry = useCallback((nodeId, layer, fromState, toState, source = 'codevault-ui', reason = '') => {
     const node = allNodes.find(n => n.id === nodeId);
@@ -1556,14 +1574,15 @@ function CodeVault() {
   }, [allNodes]);
 
   const updateLock = useCallback((nodeId, layer, state) => {
-    setLocks(prev => {
-      const oldState = prev[nodeId]?.[layer] || 'locked';
-      if (oldState !== state) {
-        logAuditEntry(nodeId, layer, oldState, state);
-      }
-      return { ...prev, [nodeId]: { ...prev[nodeId], [layer]: state } };
+    const platform = activePlatform === 'all' ? '_default' : activePlatform;
+    setLocks(prev=>{
+      const entry = prev[nodeId] || {_default:{ui:'locked',logic:'locked',data:'locked'}};
+      const current = entry[platform] || {...(entry._default || {ui:'locked',logic:'locked',data:'locked'})};
+      const oldState = current[layer]||'locked';
+      if(oldState!==state) logAuditEntry(nodeId,layer,oldState,state);
+      return {...prev,[nodeId]:{...entry,[platform]:{...current,[layer]:state}}};
     });
-  }, [logAuditEntry]);
+  }, [logAuditEntry, activePlatform]);
 
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
@@ -1613,7 +1632,7 @@ function CodeVault() {
         <div style={{ flex: 1 }}>
           <div className="welcome-screen">
             <div className="welcome-icon">{I.lock(48, 'var(--accent)')}</div>
-            <h1 className="welcome-title">CodeVault v1.0</h1>
+            <h1 className="welcome-title">CodeVault v1.1</h1>
             <p className="welcome-text">
               Universal lock control system for your codebase.
             </p>
@@ -1902,6 +1921,11 @@ function CodeVault() {
                         {getOverall(node.id) === 'caution' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.alert(12, 'var(--caution)')} Caution</span>}
                         {getOverall(node.id) === 'open' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.check(12, 'var(--open)')} Open</span>}
                       </span>
+                      {activePlatform !== 'all' && locks[node.id]?.[activePlatform] && (
+                        <span style={{fontSize:9,padding:'2px 6px',borderRadius:4,background:'rgba(99,102,241,0.15)',color:'var(--accent)',fontWeight:600}}>
+                          ★ Override
+                        </span>
+                      )}
                       {node.platform && node.platform !== 'web' && (
                         <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', fontWeight: 600 }}>
                           {PLATFORM_DEFS[node.platform]?.icon} {PLATFORM_DEFS[node.platform]?.label}
@@ -2030,38 +2054,42 @@ function CodeVault() {
               <div className="detail-body">
                 {/* Lock Controls */}
                 <div className="detail-section">
-                  <div className="detail-section-title">Lock State</div>
+                  <div className="detail-section-title">Lock State {activePlatform !== 'all' && <span style={{fontSize:'10px',padding:'1px 6px',borderRadius:3,background:'rgba(91,154,160,0.15)',color:'var(--accent)',fontWeight:600,marginLeft:6}}>{PLATFORM_DEFS[activePlatform]?.label}</span>}</div>
                   <div className="lock-controls">
-                    {['ui', 'logic', 'data'].map(layer => (
-                      <div key={layer} style={{ flex: 1 }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>
-                          {layer}
+                    {['ui', 'logic', 'data'].map(layer => {
+                      const entry = locks[selectedNode.id] || {_default:{ui:'locked',logic:'locked',data:'locked'}};
+                      const sub = (activePlatform !== 'all' && entry[activePlatform]) ? entry[activePlatform] : (entry._default || {ui:'locked',logic:'locked',data:'locked'});
+                      return (
+                        <div key={layer} style={{ flex: 1 }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>
+                            {layer}
+                          </div>
+                          <div className="layer-lock-btns">
+                            {['locked', 'caution', 'open'].map(state => (
+                              <button
+                                key={state}
+                                className={`layer-lock-btn ${state}`}
+                                onClick={() => updateLock(selectedNode.id, layer, state)}
+                                style={{
+                                  backgroundColor:
+                                    (sub[layer] || 'locked') === state
+                                      ? state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)'
+                                      : 'transparent',
+                                  color:
+                                    (sub[layer] || 'locked') === state ? '#fff' : 'var(--text2)',
+                                  borderColor:
+                                    state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)',
+                                  fontWeight:
+                                    (sub[layer] || 'locked') === state ? '600' : '500'
+                                }}
+                              >
+                                {state === 'locked' ? I.lock(12) : state === 'caution' ? I.alert(12) : I.check(12)}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div className="layer-lock-btns">
-                          {['locked', 'caution', 'open'].map(state => (
-                            <button
-                              key={state}
-                              className={`layer-lock-btn ${state}`}
-                              onClick={() => updateLock(selectedNode.id, layer, state)}
-                              style={{
-                                backgroundColor:
-                                  (locks[selectedNode.id]?.[layer] || 'locked') === state
-                                    ? state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)'
-                                    : 'transparent',
-                                color:
-                                  (locks[selectedNode.id]?.[layer] || 'locked') === state ? '#fff' : 'var(--text2)',
-                                borderColor:
-                                  state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)',
-                                fontWeight:
-                                  (locks[selectedNode.id]?.[layer] || 'locked') === state ? '600' : '500'
-                              }}
-                            >
-                              {state === 'locked' ? I.lock(12) : state === 'caution' ? I.alert(12) : I.check(12)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
