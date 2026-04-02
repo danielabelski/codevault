@@ -282,6 +282,7 @@ const GROUP_META = (() => {
     protected: '#3B82F6',
     admin: '#F59E0B',
     api: '#EC4899',
+    native: '#8B5CF6',
   };
   const labelMap = {
     auth: 'Authentication',
@@ -289,6 +290,7 @@ const GROUP_META = (() => {
     protected: 'Protected App',
     admin: 'Admin Panel',
     api: 'API Routes',
+    native: 'Native Shells',
   };
 
   ROUTES.forEach(r => {
@@ -328,13 +330,20 @@ const TABLE_DOMAINS = (() => {
 })();
 
 // Platform definitions
+// SVG icon helper — renders small 14x14 inline icons for platform pills
+const svgIcon = (d, color = 'currentColor') => React.createElement('svg', {
+  width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
+  stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+  style: { display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }
+}, React.createElement('path', { d }));
+
 const PLATFORM_DEFS = {
-  all: { label: 'All', icon: '📦' },
-  web: { label: 'Web', icon: '🌐' },
-  ios: { label: 'iOS', icon: '🍏' },
-  android: { label: 'Android', icon: '🤖' },
-  backend: { label: 'Backend', icon: '⚙️' },
-  shared: { label: 'Shared', icon: '🔁' }
+  all: { label: 'All', icon: svgIcon('M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z') },
+  web: { label: 'Web', icon: svgIcon('M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z') },
+  ios: { label: 'iOS', icon: svgIcon('M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1.5 5.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM16 17H8l4-8 4 8z') },
+  android: { label: 'Android', icon: svgIcon('M4 10v7a2 2 0 002 2h12a2 2 0 002-2v-7M7 10V7a5 5 0 0110 0v3M9 6l-1.5-2M15 6l1.5-2') },
+  backend: { label: 'Backend', icon: svgIcon('M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5') },
+  shared: { label: 'Shared', icon: svgIcon('M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01') }
 };
 
 // Default description generator
