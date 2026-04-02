@@ -527,6 +527,24 @@ This project has **${totalEntries} protected entries** across ${routes.length} r
       desc: 'Aider'
     },
 
+    // OpenAI Codex
+    'AGENTS.md': {
+      content: `# CodeVault Lock Enforcement\n\n${lockProtocol}\n### Codex-Specific\n\n- Before modifying any file, read LOCK_CONFIG.json and check the lock state\n- If a file is locked, do NOT modify it — explain what is locked and why\n- If a file is not in LOCK_CONFIG.json, add it as locked before proceeding\n- Write pending unlock requests to \`_pendingUnlocks\` in LOCK_CONFIG.json when creating plans\n- Log all modifications to the \`_auditLog\` array in LOCK_CONFIG.json\n`,
+      desc: 'OpenAI Codex'
+    },
+
+    // Cline (VS Code extension)
+    '.clinerules': {
+      content: `${lockProtocol}`,
+      desc: 'Cline'
+    },
+
+    // Amazon Q Developer
+    '.amazonq/rules.md': {
+      content: `# Amazon Q Developer — CodeVault Lock Enforcement\n\n${lockProtocol}`,
+      desc: 'Amazon Q Developer'
+    },
+
     // Generic / catch-all
     'AGENT_LOCK_RULES.md': {
       content: `# CodeVault Lock Rules (Universal)\n\nThis file contains lock enforcement rules for any AI coding agent.\nCopy the relevant sections into your agent's instruction file.\n\n${lockProtocol}`,
@@ -563,7 +581,7 @@ This project has **${totalEntries} protected entries** across ${routes.length} r
   }
 
   console.log(`  ${generated} agent instruction files generated.`);
-  console.log(`  Supported agents: Claude, Cursor, Windsurf, GitHub Copilot, Aider, Generic`);
+  console.log(`  Supported agents: Claude, Cursor, Windsurf, GitHub Copilot, OpenAI Codex, Aider, Cline, Amazon Q, Generic`);
 }
 
 // ════════════════════════════════════════════
