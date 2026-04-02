@@ -30,6 +30,7 @@ window.CODEVAULT_DATA = {
     //   group: "public",
     //   type: "page",
     //   client: false,
+    //   platform: "web",  // "web" | "ios" | "android" | "backend" | "shared"
     //   tables: []
     // },
   ],
@@ -43,6 +44,7 @@ window.CODEVAULT_DATA = {
     //   path: "api/example",
     //   group: "api",
     //   type: "api",
+    //   platform: "backend",  // "web" | "ios" | "android" | "backend" | "shared"
     //   tables: []
     // },
   ],
@@ -54,6 +56,7 @@ window.CODEVAULT_DATA = {
     //   id: "t-users",
     //   name: "users",
     //   domain: "Core",
+    //   platform: "shared",  // "web" | "ios" | "android" | "backend" | "shared"
     //   reads: 5,
     //   writes: 3
     // },
@@ -66,6 +69,7 @@ window.CODEVAULT_DATA = {
     //   id: "sa-example",
     //   name: "example/actions.ts",
     //   path: "app/example",
+    //   platform: "backend",  // "web" | "ios" | "android" | "backend" | "shared"
     //   lines: 1500,
     //   funcs: ["getExample", "createExample", "updateExample"],
     //   tables: ["examples"]

@@ -327,6 +327,16 @@ const TABLE_DOMAINS = (() => {
   return domains;
 })();
 
+// Platform definitions
+const PLATFORM_DEFS = {
+  all: { label: 'All', icon: '📦' },
+  web: { label: 'Web', icon: '🌐' },
+  ios: { label: 'iOS', icon: '🍏' },
+  android: { label: 'Android', icon: '🤖' },
+  backend: { label: 'Backend', icon: '⚙️' },
+  shared: { label: 'Shared', icon: '🔁' }
+};
+
 // Default description generator
 function getDescription(node) {
   const isTable = !!node.domain && !node.funcs;
@@ -1287,6 +1297,7 @@ function CodeVault() {
   const [connected, setConnected] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [activePlatform, setActivePlatform] = useState('all');
   const [auditLog, setAuditLog] = useState(() => {
     try { const s = localStorage.getItem('cv-audit-log'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
   });
@@ -1329,14 +1340,18 @@ function CodeVault() {
   const allNodes = useMemo(() => [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS], []);
 
   const filteredNodes = useMemo(() => {
-    if (!searchQuery.trim()) return allNodes;
+    let nodes = allNodes;
+    if (activePlatform !== 'all') {
+      nodes = nodes.filter(n => (n.platform || 'web') === activePlatform);
+    }
+    if (!searchQuery.trim()) return nodes;
     const q = searchQuery.toLowerCase();
-    return allNodes.filter(n =>
+    return nodes.filter(n =>
       n.name.toLowerCase().includes(q) ||
       n.id.toLowerCase().includes(q) ||
       (n.path && n.path.toLowerCase().includes(q))
     );
-  }, [allNodes, searchQuery]);
+  }, [allNodes, searchQuery, activePlatform]);
 
   const buildConfigJSON = useCallback((lockState) => {
     const cfg = {
@@ -1354,6 +1369,13 @@ function CodeVault() {
         logic: 'Business rules, validation, calculations, workflows, state management',
         data: 'Database queries, API calls, data schemas, request/response shapes'
       },
+      _platforms: {
+        web: 'Web application (React, Next.js, Vue, HTML/CSS, browser JS/TS)',
+        ios: 'Native iOS (Swift, SwiftUI, UIKit)',
+        android: 'Native Android (Kotlin, Jetpack Compose)',
+        backend: 'Server-side (APIs, databases, middleware)',
+        shared: 'Cross-platform (utilities, types, configs)'
+      },
       routes: {},
       serverActions: {},
       tables: {},
@@ -1365,7 +1387,7 @@ function CodeVault() {
 
     allNodes.forEach(n => {
       const sub = lockState[n.id] || { ui: 'locked', logic: 'locked', data: 'locked' };
-      const entry = { path: n.path || '', name: n.name, ui: sub.ui, logic: sub.logic, data: sub.data };
+      const entry = { path: n.path || '', name: n.name, platform: n.platform || 'web', ui: sub.ui, logic: sub.logic, data: sub.data };
 
       if (n.type === 'page') cfg.routes[n.id] = entry;
       else if (n.type === 'api') cfg.apiRoutes[n.id] = entry;
@@ -1630,6 +1652,27 @@ function CodeVault() {
             onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
+        {/* Platform Filter */}
+        <div style={{ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, marginRight: 4 }}>PLATFORM:</span>
+          {Object.entries(PLATFORM_DEFS).map(([key, p]) => {
+            const count = key === 'all' ? allNodes.length : allNodes.filter(n => (n.platform || 'web') === key).length;
+            if (key !== 'all' && count === 0) return null;
+            return (
+              <button key={key} onClick={() => setActivePlatform(key)}
+                style={{
+                  padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
+                  border: activePlatform === key ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  background: activePlatform === key ? 'var(--card)' : 'transparent',
+                  color: activePlatform === key ? 'var(--text1)' : 'var(--text3)',
+                  transition: 'all 0.15s'
+                }}>
+                {p.icon} {p.label} <span style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 6px', borderRadius: 10, fontSize: 10 }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="node-list">
           {filteredNodes.map(node => (
             <div
@@ -1648,7 +1691,14 @@ function CodeVault() {
                     'var(--accent)'
                 }}
               />
-              <div className="node-item-text">{node.name}</div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="node-item-text">{node.name}</div>
+                {node.platform && node.platform !== 'web' && (
+                  <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 6, background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {PLATFORM_DEFS[node.platform]?.label}
+                  </span>
+                )}
+              </div>
               <div
                 className={`node-item-lock ${getOverall(node.id)}`}
                 style={{
@@ -1843,6 +1893,11 @@ function CodeVault() {
                         {getOverall(node.id) === 'caution' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.alert(12, 'var(--caution)')} Caution</span>}
                         {getOverall(node.id) === 'open' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{I.check(12, 'var(--open)')} Open</span>}
                       </span>
+                      {node.platform && node.platform !== 'web' && (
+                        <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: 'var(--accent)', fontWeight: 600 }}>
+                          {PLATFORM_DEFS[node.platform]?.icon} {PLATFORM_DEFS[node.platform]?.label}
+                        </span>
+                      )}
                       {node.group && <span className="card-badge">{node.group}</span>}
                     </div>
                   </div>
