@@ -202,6 +202,13 @@ if (nativePlatforms.length > 0) {
   console.log(`  + Found ${nativePlatforms.length} native platform shells`);
 }
 
+// Scan critical library files for individual lock control
+const criticalLibs = scanCriticalLibraries();
+if (criticalLibs.length > 0) {
+  serverActions = serverActions.concat(criticalLibs);
+  console.log(`  + Found ${criticalLibs.length} critical library files`);
+}
+
 // Generate output
 const output = `/**
  * CodeVault Data Configuration
@@ -412,6 +419,138 @@ function scanTables(config) {
   });
 
   return tables;
+}
+
+/**
+ * Scan critical library directories for individual file-level lock control.
+ * Auto-detects common patterns across any codebase:
+ * - Security / auth / encryption / crypto
+ * - Payment / billing / stripe
+ * - AI / ML / LLM integrations
+ * - Compliance / consent / privacy
+ * - Database / ORM / migrations
+ * - Middleware / interceptors
+ * - Logging / monitoring / analytics
+ * - Notification / email / SMS services
+ * - Type definitions / schemas
+ * - Custom hooks (React)
+ * - Admin / permission / RBAC
+ * - Referral / growth systems
+ */
+function scanCriticalLibraries() {
+  const entries = [];
+  const seen = new Set();
+
+  // Critical directory patterns to scan — these match common naming conventions
+  // across React, Next.js, SvelteKit, Remix, Express, and generic Node.js projects
+  const criticalPatterns = [
+    // Security & Auth
+    { glob: 'src/lib/security/**/*.{ts,tsx,js,jsx}', group: 'security', platform: 'shared', label: 'Security' },
+    { glob: 'src/lib/auth/**/*.{ts,tsx,js,jsx}', group: 'security', platform: 'shared', label: 'Auth' },
+    { glob: 'lib/security/**/*.{ts,tsx,js,jsx}', group: 'security', platform: 'shared', label: 'Security' },
+    { glob: 'lib/auth/**/*.{ts,tsx,js,jsx}', group: 'security', platform: 'shared', label: 'Auth' },
+    { glob: 'utils/security/**/*.{ts,tsx,js,jsx}', group: 'security', platform: 'shared', label: 'Security' },
+    { glob: 'utils/auth/**/*.{ts,tsx,js,jsx}', group: 'security', platform: 'shared', label: 'Auth' },
+    // Encryption & Crypto
+    { glob: 'src/lib/encryption/**/*.{ts,tsx,js,jsx}', group: 'encryption', platform: 'shared', label: 'Encryption' },
+    { glob: 'src/lib/crypto/**/*.{ts,tsx,js,jsx}', group: 'encryption', platform: 'shared', label: 'Crypto' },
+    { glob: 'lib/encryption/**/*.{ts,tsx,js,jsx}', group: 'encryption', platform: 'shared', label: 'Encryption' },
+    { glob: 'lib/crypto/**/*.{ts,tsx,js,jsx}', group: 'encryption', platform: 'shared', label: 'Crypto' },
+    // Payments & Billing
+    { glob: 'src/lib/stripe/**/*.{ts,tsx,js,jsx}', group: 'stripe', platform: 'backend', label: 'Stripe' },
+    { glob: 'src/lib/payments/**/*.{ts,tsx,js,jsx}', group: 'payments', platform: 'backend', label: 'Payments' },
+    { glob: 'src/lib/billing/**/*.{ts,tsx,js,jsx}', group: 'payments', platform: 'backend', label: 'Billing' },
+    { glob: 'lib/stripe/**/*.{ts,tsx,js,jsx}', group: 'stripe', platform: 'backend', label: 'Stripe' },
+    { glob: 'lib/payments/**/*.{ts,tsx,js,jsx}', group: 'payments', platform: 'backend', label: 'Payments' },
+    // AI & ML
+    { glob: 'src/lib/ai/**/*.{ts,tsx,js,jsx}', group: 'ai', platform: 'shared', label: 'AI' },
+    { glob: 'src/lib/ml/**/*.{ts,tsx,js,jsx}', group: 'ai', platform: 'shared', label: 'ML' },
+    { glob: 'src/lib/llm/**/*.{ts,tsx,js,jsx}', group: 'ai', platform: 'shared', label: 'LLM' },
+    { glob: 'lib/ai/**/*.{ts,tsx,js,jsx}', group: 'ai', platform: 'shared', label: 'AI' },
+    // Compliance & Consent
+    { glob: 'src/lib/compliance/**/*.{ts,tsx,js,jsx}', group: 'compliance', platform: 'shared', label: 'Compliance' },
+    { glob: 'src/lib/consent/**/*.{ts,tsx,js,jsx}', group: 'consent', platform: 'shared', label: 'Consent' },
+    { glob: 'src/lib/privacy/**/*.{ts,tsx,js,jsx}', group: 'consent', platform: 'shared', label: 'Privacy' },
+    { glob: 'lib/compliance/**/*.{ts,tsx,js,jsx}', group: 'compliance', platform: 'shared', label: 'Compliance' },
+    // Tiers & Feature Flags
+    { glob: 'src/lib/tiers/**/*.{ts,tsx,js,jsx}', group: 'tiers', platform: 'shared', label: 'Tiers' },
+    { glob: 'src/lib/feature-flags/**/*.{ts,tsx,js,jsx}', group: 'tiers', platform: 'shared', label: 'Feature Flags' },
+    { glob: 'src/lib/subscriptions/**/*.{ts,tsx,js,jsx}', group: 'tiers', platform: 'shared', label: 'Subscriptions' },
+    // Middleware
+    { glob: 'src/middleware/**/*.{ts,tsx,js,jsx}', group: 'middleware', platform: 'backend', label: 'Middleware' },
+    { glob: 'middleware/**/*.{ts,tsx,js,jsx}', group: 'middleware', platform: 'backend', label: 'Middleware' },
+    { glob: 'src/lib/middleware/**/*.{ts,tsx,js,jsx}', group: 'middleware', platform: 'backend', label: 'Middleware' },
+    // Notifications & Email
+    { glob: 'src/lib/notifications/**/*.{ts,tsx,js,jsx}', group: 'notifications', platform: 'shared', label: 'Notifications' },
+    { glob: 'src/lib/email/**/*.{ts,tsx,js,jsx}', group: 'notifications', platform: 'backend', label: 'Email' },
+    { glob: 'src/lib/sms/**/*.{ts,tsx,js,jsx}', group: 'notifications', platform: 'backend', label: 'SMS' },
+    { glob: 'lib/notifications/**/*.{ts,tsx,js,jsx}', group: 'notifications', platform: 'shared', label: 'Notifications' },
+    // Logging & Monitoring
+    { glob: 'src/lib/logging/**/*.{ts,tsx,js,jsx}', group: 'logging', platform: 'shared', label: 'Logging' },
+    { glob: 'src/lib/monitoring/**/*.{ts,tsx,js,jsx}', group: 'logging', platform: 'shared', label: 'Monitoring' },
+    { glob: 'src/lib/analytics/**/*.{ts,tsx,js,jsx}', group: 'logging', platform: 'shared', label: 'Analytics' },
+    { glob: 'lib/logging/**/*.{ts,tsx,js,jsx}', group: 'logging', platform: 'shared', label: 'Logging' },
+    // Referrals & Growth
+    { glob: 'src/lib/referrals/**/*.{ts,tsx,js,jsx}', group: 'referrals', platform: 'shared', label: 'Referrals' },
+    { glob: 'src/lib/growth/**/*.{ts,tsx,js,jsx}', group: 'referrals', platform: 'shared', label: 'Growth' },
+    // Admin Library
+    { glob: 'src/lib/admin/**/*.{ts,tsx,js,jsx}', group: 'admin-lib', platform: 'backend', label: 'Admin Library' },
+    { glob: 'lib/admin/**/*.{ts,tsx,js,jsx}', group: 'admin-lib', platform: 'backend', label: 'Admin Library' },
+    // Type Definitions
+    { glob: 'src/types/**/*.{ts,tsx}', group: 'types', platform: 'shared', label: 'Types' },
+    { glob: 'types/**/*.{ts,tsx}', group: 'types', platform: 'shared', label: 'Types' },
+    // React Hooks
+    { glob: 'src/hooks/**/*.{ts,tsx,js,jsx}', group: 'hooks', platform: 'shared', label: 'Hooks' },
+    { glob: 'hooks/**/*.{ts,tsx,js,jsx}', group: 'hooks', platform: 'shared', label: 'Hooks' },
+    // Database / ORM / Migrations
+    { glob: 'src/lib/db/**/*.{ts,tsx,js,jsx}', group: 'database', platform: 'backend', label: 'Database' },
+    { glob: 'src/lib/database/**/*.{ts,tsx,js,jsx}', group: 'database', platform: 'backend', label: 'Database' },
+    { glob: 'src/lib/supabase/**/*.{ts,tsx,js,jsx}', group: 'database', platform: 'backend', label: 'Supabase' },
+    { glob: 'lib/db/**/*.{ts,tsx,js,jsx}', group: 'database', platform: 'backend', label: 'Database' },
+    { glob: 'prisma/**/*.{ts,js}', group: 'database', platform: 'backend', label: 'Prisma' },
+    { glob: 'drizzle/**/*.{ts,js}', group: 'database', platform: 'backend', label: 'Drizzle' },
+    // Shared UI Components
+    { glob: 'src/components/ui/**/*.{ts,tsx,js,jsx}', group: 'ui-components', platform: 'web', label: 'UI Components' },
+    { glob: 'components/ui/**/*.{ts,tsx,js,jsx}', group: 'ui-components', platform: 'web', label: 'UI Components' },
+  ];
+
+  for (const pattern of criticalPatterns) {
+    const files = globSync(pattern.glob, {
+      cwd: process.cwd(),
+      ignore: ['node_modules/**', '.next/**', 'dist/**', 'build/**', '*.test.*', '*.spec.*', '__tests__/**']
+    });
+
+    for (const file of files) {
+      const normalized = file.replace(/\\/g, '/');
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+
+      // Generate a human-readable name from the filename
+      const basename = path.basename(normalized, path.extname(normalized));
+      const name = basename
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+
+      // Generate a stable ID from the path
+      const id = 'lib-' + normalized
+        .replace(/^src\//, '')
+        .replace(/\.(ts|tsx|js|jsx)$/, '')
+        .replace(/\//g, '-')
+        .replace(/[^a-z0-9-]/gi, '-')
+        .toLowerCase();
+
+      entries.push({
+        id,
+        name,
+        path: normalized,
+        group: pattern.group,
+        platform: pattern.platform,
+        funcs: ['*'],
+      });
+    }
+  }
+
+  return entries;
 }
 
 function scanServerActions(config) {
