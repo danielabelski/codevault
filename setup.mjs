@@ -436,6 +436,27 @@ function generateAgentLockRules() {
 
 This project uses CodeVault to control which files AI agents can modify. Before editing ANY file, you MUST check LOCK_CONFIG.json in the project root.
 
+### CRITICAL: AI Agents Must NEVER Modify Lock States
+
+**You (the AI agent) are NOT authorized to change lock states in LOCK_CONFIG.json.** Only the human user can change lock states, and ONLY through the CodeVault dashboard (codevault.html).
+
+**What you CANNOT do:**
+- NEVER change \`ui\`, \`logic\`, or \`data\` values from \`locked\`/\`caution\` to \`open\` (or any other state change)
+- NEVER offer to edit LOCK_CONFIG.json as an unlock option
+- NEVER offer a \`/lock\` command or any CLI-based unlock mechanism
+- NEVER include "edit LOCK_CONFIG.json" or "run unlock command" as a step in any plan
+- NEVER present ANY alternative to the CodeVault dashboard for unlocking files
+
+**What you CAN write to LOCK_CONFIG.json:**
+- \`_auditLog\` entries (append-only, documenting what was changed and why)
+- \`_pendingUnlocks\` entries (requests for the user to review on the dashboard)
+- New entry registrations for untracked files (always defaulting to \`locked\` on all layers)
+
+**When a file is locked, the ONLY acceptable response is:**
+> "This file is locked on the [layer] layer. Please unlock it via the CodeVault dashboard, then I'll proceed."
+
+Do NOT offer alternatives. Do NOT offer to run a command. Wait for the user to unlock it on the dashboard.
+
 ### How It Works
 
 LOCK_CONFIG.json maps every route, server action, API endpoint, and database table to a three-layer lock state:
@@ -448,7 +469,7 @@ Each layer has one of three states:
 
 | State | What You Do |
 |-------|-------------|
-| **locked** | DO NOT MODIFY. Refuse the change. Tell the user what is locked. |
+| **locked** | DO NOT MODIFY. Refuse the change. Tell the user what is locked. Direct them to unlock via the CodeVault dashboard. |
 | **caution** | ASK FIRST. Show the user what you plan to change and wait for explicit approval. |
 | **open** | PROCEED NORMALLY. You can modify this layer freely. |
 
@@ -462,7 +483,7 @@ Each layer has one of three states:
    - Changing className, CSS, layout, JSX → **UI layer**
    - Changing if/else, validation, handlers → **Logic layer**
    - Changing database queries, API calls → **Data layer**
-3. If ANY affected layer is \`locked\`: REFUSE. Do not make the change.
+3. If ANY affected layer is \`locked\`: REFUSE. Do not make the change. Direct the user to the CodeVault dashboard.
 4. If ANY affected layer is \`caution\`: Describe the change and ask for confirmation.
 5. If ALL affected layers are \`open\`: Proceed normally.
 6. When an edit spans multiple layers, ALL must be open or caution.
@@ -472,11 +493,11 @@ Each layer has one of three states:
 If a file is NOT in LOCK_CONFIG.json, do NOT silently proceed. Instead:
 1. Add it to LOCK_CONFIG.json under the appropriate section (routes, serverActions, tables, apiRoutes)
 2. Set all layers to \`locked\` by default
-3. Then follow the normal lock check flow
+3. Then follow the normal lock check flow (which means: tell the user it's locked, direct them to the dashboard)
 
-### Pending Unlock Requests
+### Pending Unlock Requests (Plan Mode)
 
-When creating a plan that requires modifying locked files, write a \`_pendingUnlocks\` array to LOCK_CONFIG.json:
+When creating a plan that requires modifying locked files, write a \`_pendingUnlocks\` array to LOCK_CONFIG.json. Do NOT offer to unlock the files yourself — only write the request so the dashboard highlights them:
 \`\`\`json
 "_pendingUnlocks": [
   {
@@ -484,11 +505,15 @@ When creating a plan that requires modifying locked files, write a \`_pendingUnl
     "layers": ["logic", "data"],
     "reason": "Plan: Add OAuth2 support",
     "agent": "your-agent-name",
-    "timestamp": "${new Date().toISOString()}"
+    "planId": "plan-YYYY-MM-DD-short-description",
+    "timestamp": "${new Date().toISOString()}",
+    "priority": "high"
   }
 ]
 \`\`\`
-The CodeVault dashboard will highlight these files for the user to unlock.
+The CodeVault dashboard will highlight these files with a glowing amber badge. The user unlocks them on the dashboard, the requests auto-clear, and then you proceed.
+
+**Plans must NEVER include unlock steps.** They must only include \`_pendingUnlocks\` writes and a note: "Waiting for user to unlock files via CodeVault dashboard."
 
 ### Current Stats
 
@@ -499,7 +524,7 @@ This project has **${totalEntries} protected entries** across ${routes.length} r
   const agents = {
     // Claude Code / Cowork
     'CLAUDE_LOCK_RULES.md': {
-      content: `# CodeVault Lock Rules for Claude\n\n${lockProtocol}\n### Claude-Specific\n\n- Log all modifications to the \`_auditLog\` array in LOCK_CONFIG.json\n- Use the unlock-before-modify protocol: check → ask → log → unlock → modify → re-lock → log\n- Write pending unlock requests during plan mode\n`,
+      content: `# CodeVault Lock Rules for Claude\n\n${lockProtocol}\n### Claude-Specific\n\n- Log all modifications to the \`_auditLog\` array in LOCK_CONFIG.json (append-only)\n- After the user unlocks a file via the dashboard: log audit entry → modify → re-lock audit entry\n- Write \`_pendingUnlocks\` during plan mode — NEVER offer to unlock files yourself\n- NEVER use a \`/lock\` command or offer to edit lock states directly\n`,
       desc: 'Claude Code / Cowork'
     },
 
@@ -529,7 +554,7 @@ This project has **${totalEntries} protected entries** across ${routes.length} r
 
     // OpenAI Codex
     'AGENTS.md': {
-      content: `# CodeVault Lock Enforcement\n\n${lockProtocol}\n### Codex-Specific\n\n- Before modifying any file, read LOCK_CONFIG.json and check the lock state\n- If a file is locked, do NOT modify it — explain what is locked and why\n- If a file is not in LOCK_CONFIG.json, add it as locked before proceeding\n- Write pending unlock requests to \`_pendingUnlocks\` in LOCK_CONFIG.json when creating plans\n- Log all modifications to the \`_auditLog\` array in LOCK_CONFIG.json\n`,
+      content: `# CodeVault Lock Enforcement\n\n${lockProtocol}\n### Codex-Specific\n\n- Before modifying any file, read LOCK_CONFIG.json and check the lock state\n- If a file is locked, do NOT modify it — direct the user to unlock via the CodeVault dashboard\n- NEVER offer to edit LOCK_CONFIG.json lock states or run unlock commands\n- If a file is not in LOCK_CONFIG.json, add it as locked before proceeding\n- Write \`_pendingUnlocks\` to LOCK_CONFIG.json when creating plans — NEVER offer to unlock files yourself\n- Log all modifications to the \`_auditLog\` array in LOCK_CONFIG.json (append-only)\n`,
       desc: 'OpenAI Codex'
     },
 
