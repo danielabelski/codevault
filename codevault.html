@@ -19,7 +19,7 @@
 --locked:#DC2626;--lockedBg:rgba(220,38,38,.12);--lockedBorder:rgba(220,38,38,.3);
 --caution:#F59E0B;--cautionBg:rgba(245,158,11,.12);--cautionBorder:rgba(245,158,11,.3);
 --open:#16A34A;--openBg:rgba(22,163,74,.12);--openBorder:rgba(22,163,74,.3);
---route:#3B82F6;--table:#A855F7;--action:#F97316;--component:#06B6D4;--api:#EC4899;
+--route:#3B82F6;--table:#A855F7;--action:#F97316;--component:#06B6D4;--api:#EC4899;--dir:#14B8A6;
 --shadow:0 4px 24px rgba(0,0,0,.4);
 --graphBg:#080E1A;--graphLabel:#94A3B8;
 --overlayBg:rgba(0,0,0,.5);
@@ -32,7 +32,7 @@
 --locked:#DC2626;--lockedBg:rgba(220,38,38,.08);--lockedBorder:rgba(220,38,38,.25);
 --caution:#D97706;--cautionBg:rgba(217,119,6,.08);--cautionBorder:rgba(217,119,6,.25);
 --open:#15803D;--openBg:rgba(21,128,61,.08);--openBorder:rgba(21,128,61,.25);
---route:#2563EB;--table:#9333EA;--action:#EA580C;--component:#0891B2;--api:#DB2777;
+--route:#2563EB;--table:#9333EA;--action:#EA580C;--component:#0891B2;--api:#DB2777;--dir:#0D9488;
 --shadow:0 4px 24px rgba(0,0,0,.08);
 --graphBg:#F8FAFC;--graphLabel:#475569;
 --overlayBg:rgba(0,0,0,.3);
@@ -95,6 +95,22 @@ select.input option{background:var(--panel);color:var(--text);padding:6px}
 .pending-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(245,158,11,0.15);color:#F59E0B;text-transform:uppercase;letter-spacing:0.5px}
 .pending-banner{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;margin-bottom:12px;font-size:13px;color:#F59E0B}
 .pending-banner strong{color:#F59E0B}
+.pending-filter-btn{padding:5px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid #F59E0B;background:transparent;color:#F59E0B;transition:all .2s;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}
+.pending-filter-btn:hover{background:rgba(245,158,11,0.15)}
+.pending-filter-btn.active{background:#F59E0B;color:#000;box-shadow:0 0 12px rgba(245,158,11,0.4)}
+.sub-lock-btn.pending-highlight,.layer-lock-btn.pending-highlight{animation:layerPulse 1.5s ease-in-out infinite;box-shadow:0 0 8px rgba(245,158,11,0.5);border-color:#F59E0B !important}
+@keyframes layerPulse{0%,100%{box-shadow:0 0 6px rgba(245,158,11,0.3);border-color:#F59E0B}50%{box-shadow:0 0 14px rgba(245,158,11,0.6);border-color:#FBBF24}}
+.card.file-node{margin-left:12px;position:relative;background:var(--panel2);border-width:1px}
+.card.file-node::after{content:'';position:absolute;left:-12px;top:50%;width:10px;border-top:1px dashed var(--border2)}
+/* Inline sub-lock row on cards */
+.sub-locks{display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.sub-lock-group{display:flex;align-items:center;gap:4px}
+.sub-lock-label{font-size:10px;color:var(--text3);font-weight:600;width:32px}
+.sub-lock-btn{width:18px;height:18px;border-radius:4px;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;transition:all .15s;background:var(--panel2);color:var(--text3)}
+.sub-lock-btn:hover{filter:brightness(1.3)}
+.sub-lock-btn.active.locked{background:var(--lockedBg);color:var(--locked);border-color:var(--lockedBorder)}
+.sub-lock-btn.active.caution{background:var(--cautionBg);color:var(--caution);border-color:var(--cautionBorder)}
+.sub-lock-btn.active.open{background:var(--openBg);color:var(--open);border-color:var(--openBorder)}
 /* DETAIL PANEL */
 .detail-panel{width:400px;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
 .detail-header{padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
@@ -240,6 +256,8 @@ const I = {
   disconnect: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><line x1="2" y1="2" x2="22" y2="22"/></svg>,
   arrowRight: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
   refresh: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+  eye: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  cpu: (s=14,c='currentColor') => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>,
 };
 
 // Environment URLs — loaded from localStorage override, then codevault-data.js, then defaults
@@ -277,6 +295,15 @@ const ROUTES = _d.routes || [];
 const API_ROUTES = _d.apiRoutes || [];
 const TABLES = _d.tables || [];
 const SERVER_ACTIONS = _d.serverActions || [];
+const DIRECTORY_RULES = (_d.directoryRules || []).map((d, i) => ({
+  id: d.id || 'dir-' + (d.pattern || '').replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
+  name: d.name || d.pattern,
+  path: d.pattern,
+  type: 'dir',
+  group: d.group || 'dir-rules',
+  platform: d.platform || 'shared',
+  note: d.note || ''
+}));
 // Total codebase lines — set via CODEVAULT_DATA.totalLines or falls back to sum of server action lines
 const TOTAL_CODEBASE_LINES = _d.totalLines || null;
 
@@ -312,6 +339,11 @@ const GROUP_META = (() => {
     sms: '#0891B2',
     analytics: '#F59E0B',
     growth: '#EA580C',
+    'dir-rules': '#14B8A6',
+    'dir-components': '#14B8A6',
+    'dir-infra': '#0D9488',
+    'dir-native': '#0F766E',
+    'dir-config': '#115E59',
   };
   const labelMap = {
     auth: 'Authentication',
@@ -342,6 +374,11 @@ const GROUP_META = (() => {
     sms: 'SMS',
     analytics: 'Analytics',
     growth: 'Growth',
+    'dir-rules': 'Directory Rules',
+    'dir-components': 'Component Dirs',
+    'dir-infra': 'Infrastructure Dirs',
+    'dir-native': 'Native Shell Dirs',
+    'dir-config': 'Config Files',
   };
 
   ROUTES.forEach(r => {
@@ -365,6 +402,14 @@ const GROUP_META = (() => {
       groups[s.group] = {
         label: labelMap[s.group] || s.group,
         color: colorMap[s.group] || '#6366F1'
+      };
+    }
+  });
+  DIRECTORY_RULES.forEach(d => {
+    if (d.group && !groups[d.group]) {
+      groups[d.group] = {
+        label: labelMap[d.group] || d.group,
+        color: colorMap[d.group] || '#14B8A6'
       };
     }
   });
@@ -416,6 +461,22 @@ function getDescription(node) {
     ui: 'No UI — this is a database table',
     logic: 'Data storage, retrieval, and validation rules',
     data: `Part of the ${node.domain} domain.`
+  };
+
+  if (node.type === 'file') return {
+    plain: `Individual file: ${node.path}. Can be unlocked independently from the parent directory rule${node.parentPattern ? ' (' + node.parentPattern + ')' : ''}.`,
+    impact: `Only this specific file is affected. Other files in the directory remain at the directory rule's lock state.`,
+    ui: `Visual changes to ${node.name}`,
+    logic: `Business logic in ${node.name}`,
+    data: `Data operations in ${node.name}`
+  };
+
+  if (node.type === 'dir') return {
+    plain: `Directory rule covering ${node.path}. ${node.note || 'All files matching this pattern are protected.'}`,
+    impact: `Unlocking this rule affects ALL files matching ${node.path}. Changes cascade across the entire directory.`,
+    ui: `Visual changes to any file in ${node.path}`,
+    logic: `Business logic in any file in ${node.path}`,
+    data: `Data operations in any file in ${node.path}`
   };
 
   if (isAction) {
@@ -1384,6 +1445,7 @@ function CodeVault() {
   const [showToast, setShowToast] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [pendingUnlocks, setPendingUnlocks] = useState([]);
+  const [pendingFilterActive, setPendingFilterActive] = useState(false);
   const [activePlatform, setActivePlatform] = useState('all');
   const [auditLog, setAuditLog] = useState(() => {
     try { const s = localStorage.getItem('cv-audit-log'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
@@ -1412,7 +1474,7 @@ function CodeVault() {
 
   // Initialize locks
   useEffect(() => {
-    const allNodes = [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS];
+    const allNodes = [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS, ...DIRECTORY_RULES];
     const initialLocks = {};
     allNodes.forEach(n => {
       initialLocks[n.id] = { _default: { ui: 'locked', logic: 'locked', data: 'locked' } };
@@ -1433,27 +1495,78 @@ function CodeVault() {
     try { localStorage.setItem('cv-audit-log', JSON.stringify(auditLog.slice(-500))); } catch(e) {}
   }, [auditLog]);
 
-  // Auto-clear pending unlock requests when files are unlocked
+  // Dynamic per-file nodes from pendingUnlocks files arrays + fileOverrides
+  const fileNodes = useMemo(() => {
+    const seen = new Set();
+    const nodes = [];
+    pendingUnlocks.forEach(p => {
+      if (!p.files || !Array.isArray(p.files)) return;
+      p.files.forEach(filePath => {
+        if (seen.has(filePath)) return;
+        seen.add(filePath);
+        const parentDir = DIRECTORY_RULES.find(d => {
+          const glob = d.path.replace(/\*\*$/, '');
+          return filePath.startsWith(glob);
+        });
+        const fileName = filePath.split('/').pop();
+        nodes.push({
+          id: 'file-' + filePath.replace(/[^a-zA-Z0-9]/g, '-'),
+          name: fileName,
+          path: filePath,
+          type: 'file',
+          group: parentDir ? parentDir.group : 'dir-rules',
+          platform: parentDir ? parentDir.platform : 'shared',
+          parentDirId: parentDir ? parentDir.id : null,
+          parentPattern: parentDir ? parentDir.path : null,
+          note: ''
+        });
+      });
+    });
+    return nodes;
+  }, [pendingUnlocks, locks]);
+
+  // Auto-initialize lock state for dynamically created file nodes
+  useEffect(() => {
+    if (fileNodes.length === 0) return;
+    setLocks(prev => {
+      let changed = false;
+      const next = {...prev};
+      fileNodes.forEach(fn => {
+        if (!next[fn.id]) {
+          changed = true;
+          const parentLock = fn.parentDirId && prev[fn.parentDirId];
+          next[fn.id] = parentLock ? JSON.parse(JSON.stringify(parentLock)) : {_default:{ui:'locked',logic:'locked',data:'locked'}};
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [fileNodes]);
+
+  // Auto-clear pending unlock requests when ALL requested files are unlocked
   useEffect(() => {
     if (pendingUnlocks.length === 0) return;
     const remaining = pendingUnlocks.filter(p => {
+      const requestedLayers = (p.layers || ['ui','logic','data']).map(l=>l.toLowerCase());
+      if (p.files && Array.isArray(p.files) && p.files.length > 0) {
+        return !p.files.every(filePath => {
+          const fileId = 'file-' + filePath.replace(/[^a-zA-Z0-9]/g, '-');
+          const entry = locks[fileId];
+          if (!entry) return false;
+          const s = entry._default || {ui:'locked',logic:'locked',data:'locked'};
+          return requestedLayers.every(l => s[l] === 'open');
+        });
+      }
       const entryId = p.entry || '';
-      // Extract the node ID from "section.id" format
       const nodeId = entryId.includes('.') ? entryId.split('.').slice(1).join('.') : entryId;
       const entry = locks[nodeId];
-      if (!entry) return true; // keep if not found
-      const s = entry._default || { ui: 'locked', logic: 'locked', data: 'locked' };
-      // Check if the requested layers are now open
-      const requestedLayers = p.layers || ['ui', 'logic', 'data'];
-      const allOpen = requestedLayers.every(l => s[l] === 'open');
-      return !allOpen; // remove if all requested layers are open
+      if (!entry) return true;
+      const s = entry._default || {ui:'locked',logic:'locked',data:'locked'};
+      return !requestedLayers.every(l => s[l] === 'open');
     });
-    if (remaining.length !== pendingUnlocks.length) {
-      setPendingUnlocks(remaining);
-    }
+    if (remaining.length !== pendingUnlocks.length) setPendingUnlocks(remaining);
   }, [locks, pendingUnlocks]);
 
-  const allNodes = useMemo(() => [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS], []);
+  const allNodes = useMemo(() => [...ROUTES, ...API_ROUTES, ...TABLES, ...SERVER_ACTIONS, ...DIRECTORY_RULES, ...fileNodes], [fileNodes]);
 
   const filteredNodes = useMemo(() => {
     let nodes = allNodes;
@@ -1494,9 +1607,7 @@ function CodeVault() {
       serverActions: {},
       tables: {},
       apiRoutes: {},
-      directoryRules: [
-        { pattern: 'src/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core source code' }
-      ],
+      directoryRules: [],
       _auditLog: fileAuditLog.current || [],
       _pendingUnlocks: pendingUnlocks.length > 0 ? pendingUnlocks : undefined
     };
@@ -1513,7 +1624,23 @@ function CodeVault() {
       });
       if (Object.keys(overrides).length > 0) entry.platformOverrides = overrides;
 
-      if (n.type === 'page') cfg.routes[n.id] = entry;
+      if (n.type === 'dir') {
+        const dirEntry = { pattern: n.path, ui: def.ui, logic: def.logic, data: def.data, note: n.note || '' };
+        const fileOverrides = {};
+        allNodes.filter(fn => fn.type === 'file' && fn.parentDirId === n.id).forEach(fn => {
+          const fileLock = lockState[fn.id];
+          if (fileLock) {
+            const fd = fileLock._default || {ui:'locked',logic:'locked',data:'locked'};
+            if (fd.ui !== def.ui || fd.logic !== def.logic || fd.data !== def.data) {
+              fileOverrides[fn.path] = {ui:fd.ui,logic:fd.logic,data:fd.data};
+            }
+          }
+        });
+        if (Object.keys(fileOverrides).length > 0) dirEntry.fileOverrides = fileOverrides;
+        cfg.directoryRules.push(dirEntry);
+      } else if (n.type === 'file') {
+        // File nodes written as fileOverrides in parent dir — skip standalone
+      } else if (n.type === 'page') cfg.routes[n.id] = entry;
       else if (n.type === 'api') cfg.apiRoutes[n.id] = entry;
       else if (n.funcs) cfg.serverActions[n.id] = entry;
       else if (n.domain) cfg.tables[n.id] = entry;
@@ -1546,6 +1673,23 @@ function CodeVault() {
           }
         });
       });
+
+      // Apply directoryRules from config — match by pattern to DIRECTORY_RULES node ids
+      if (cfg.directoryRules && Array.isArray(cfg.directoryRules)) {
+        cfg.directoryRules.forEach(rule => {
+          const dirNode = DIRECTORY_RULES.find(d => d.path === rule.pattern);
+          if (dirNode && newLocks[dirNode.id]) {
+            newLocks[dirNode.id] = { _default: { ui: rule.ui || 'locked', logic: rule.logic || 'locked', data: rule.data || 'locked' } };
+          }
+          // Import per-file overrides
+          if (rule.fileOverrides && typeof rule.fileOverrides === 'object') {
+            Object.entries(rule.fileOverrides).forEach(([filePath, fileState]) => {
+              const fileId = 'file-' + filePath.replace(/[^a-zA-Z0-9]/g, '-');
+              newLocks[fileId] = {_default:{ui:fileState.ui||'locked',logic:fileState.logic||'locked',data:fileState.data||'locked'}};
+            });
+          }
+        });
+      }
 
       // Read _auditLog from file and merge into dashboard audit log
       if (cfg._auditLog && Array.isArray(cfg._auditLog)) {
@@ -1683,18 +1827,35 @@ function CodeVault() {
   const getOverall = useCallback((id) => {
     const entry = locks[id];
     if (!entry) return 'locked';
-    const s = (activePlatform !== 'all' && entry[activePlatform]) ? entry[activePlatform] : (entry._default || {ui:'locked',logic:'locked',data:'locked'});
-    if (s.ui === 'locked' || s.logic === 'locked' || s.data === 'locked') return 'locked';
-    if (s.ui === 'caution' || s.logic === 'caution' || s.data === 'caution') return 'caution';
-    return 'open';
+    if (activePlatform !== 'all' && entry[activePlatform]) {
+      const s = entry[activePlatform];
+      if (s.ui === 'locked' || s.logic === 'locked' || s.data === 'locked') return 'locked';
+      if (s.ui === 'caution' || s.logic === 'caution' || s.data === 'caution') return 'caution';
+      return 'open';
+    }
+    // When viewing "All" — aggregate across _default AND all platform overrides
+    const platforms = [entry._default || {ui:'locked',logic:'locked',data:'locked'}];
+    ['web','ios','android','backend','shared'].forEach(p => { if (entry[p]) platforms.push(entry[p]); });
+    let hasOpen = false, hasCaution = false;
+    platforms.forEach(s => {
+      if (s.ui === 'open' || s.logic === 'open' || s.data === 'open') hasOpen = true;
+      else if (s.ui === 'caution' || s.logic === 'caution' || s.data === 'caution') hasCaution = true;
+    });
+    if (hasOpen) return 'open';
+    if (hasCaution) return 'caution';
+    return 'locked';
   }, [locks, activePlatform]);
 
   // Check if a node has pending unlock requests from AI agents
   const getPendingUnlock = useCallback((nodeId) => {
     return pendingUnlocks.find(p => {
-      // Match entry format: "section.id" or just "id"
       const entryId = p.entry || '';
-      return entryId === nodeId || entryId.endsWith('.' + nodeId);
+      if (entryId === nodeId || entryId.endsWith('.' + nodeId)) return true;
+      if (nodeId.startsWith('file-') && p.files && Array.isArray(p.files)) {
+        const node = fileNodes.find(fn => fn.id === nodeId);
+        if (node && p.files.includes(node.path)) return true;
+      }
+      return false;
     });
   }, [pendingUnlocks]);
 
@@ -1756,7 +1917,7 @@ function CodeVault() {
   }, [importConfig]);
 
   // Check if data is loaded
-  const hasData = ROUTES.length > 0 || API_ROUTES.length > 0 || TABLES.length > 0 || SERVER_ACTIONS.length > 0;
+  const hasData = ROUTES.length > 0 || API_ROUTES.length > 0 || TABLES.length > 0 || SERVER_ACTIONS.length > 0 || DIRECTORY_RULES.length > 0;
 
   // Show onboarding wizard when no data and not yet completed
   if (!hasData && showOnboarding) {
@@ -1965,7 +2126,7 @@ function CodeVault() {
               <div className="view-content" style={{ padding: '16px' }}>
                 <h2>Overview</h2>
                 <p style={{ marginTop: '12px', marginBottom: '24px', color: 'var(--text2)' }}>
-                  {ROUTES.length} pages • {API_ROUTES.length} API routes • {TABLES.length} tables • {SERVER_ACTIONS.length} server actions
+                  {ROUTES.length} pages • {API_ROUTES.length} API routes • {TABLES.length} tables • {SERVER_ACTIONS.length} server actions{DIRECTORY_RULES.length > 0 ? ` • ${DIRECTORY_RULES.length} directory rules` : ''}
                 </p>
 
                 {/* Codebase Overview */}
@@ -2033,36 +2194,46 @@ function CodeVault() {
             {currentView === 'grid' && pendingUnlocks.length > 0 && (
               <div className="pending-banner">
                 {I.alert(16, '#F59E0B')}
-                <span><strong>{pendingUnlocks.length} file{pendingUnlocks.length !== 1 ? 's' : ''}</strong> pending unlock requests from AI agent{pendingUnlocks.some(p => p.agent) ? ` (${[...new Set(pendingUnlocks.map(p => p.agent))].join(', ')})` : ''}. Look for the glowing cards below.</span>
+                <span style={{ flex: 1 }}><strong>{pendingUnlocks.length} file{pendingUnlocks.length !== 1 ? 's' : ''}</strong> pending unlock requests from AI agent{pendingUnlocks.some(p => p.agent) ? ` (${[...new Set(pendingUnlocks.map(p => p.agent))].join(', ')})` : ''}{pendingFilterActive ? '. Showing pending only.' : '. Look for the glowing cards below.'}</span>
                 {pendingUnlocks[0]?.planId && <span style={{ fontSize: 11, opacity: 0.8 }}>Plan: {pendingUnlocks[0].planId}</span>}
+                <button className={`pending-filter-btn${pendingFilterActive ? ' active' : ''}`} onClick={() => setPendingFilterActive(!pendingFilterActive)}>{pendingFilterActive ? '👁 Show All' : '⚠ Show Pending Only'}</button>
               </div>
             )}
             {currentView === 'grid' && (
               <div className="grid">
-                {filteredNodes.map(node => (
+                {(pendingFilterActive ? filteredNodes.filter(n => getPendingUnlock(n.id)) : filteredNodes).map(node => (
                   <div
                     key={node.id}
-                    className={`card${getPendingUnlock(node.id) ? ' pending-unlock' : ''}`}
+                    className={`card${getPendingUnlock(node.id) ? ' pending-unlock' : ''}${node.type === 'file' ? ' file-node' : ''}`}
                     onClick={() => handleNodeClick(node)}
                   >
                     <div className="card-title">
-                      <div
-                        style={{
-                          width: '16px',
-                          height: '16px',
-                          borderRadius: '3px',
-                          backgroundColor:
-                            node.type === 'page' ? 'var(--route)' :
-                            node.type === 'api' ? 'var(--api)' :
-                            node.domain ? 'var(--table)' :
-                            node.funcs ? 'var(--action)' :
-                            'var(--accent)'
-                        }}
-                      />
+                      {node.type === 'file' ? (
+                        <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--dir)', fontWeight: 600 }}>📄</span>
+                      ) : (
+                        <div
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '3px',
+                            backgroundColor:
+                              node.type === 'dir' ? (GROUP_META[node.group]?.color || 'var(--dir)') :
+                              node.type === 'page' ? 'var(--route)' :
+                              node.type === 'api' ? 'var(--api)' :
+                              node.domain ? 'var(--table)' :
+                              node.funcs ? 'var(--action)' :
+                              'var(--accent)'
+                          }}
+                        />
+                      )}
                       {node.name}
                     </div>
                     {node.path ? (
-                      node.funcs && node.path.startsWith('src/') ? (
+                      node.type === 'file' ? (
+                        <div style={{ fontSize: '11px', color: 'var(--dir)', marginBottom: '8px', fontFamily: 'monospace' }}>{node.path}</div>
+                      ) : node.type === 'dir' ? (
+                        <div style={{ fontSize: '11px', color: 'var(--dir)', marginBottom: '8px', fontFamily: 'monospace' }}>{node.path}</div>
+                      ) : node.funcs && node.path.startsWith('src/') ? (
                         <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px' }}>{node.path}</div>
                       ) : (
                         <a href={`${envUrls[activeEnv]}/${cleanPath(node.path)}`} target="_blank" rel="noopener noreferrer"
@@ -2077,6 +2248,9 @@ function CodeVault() {
                       <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>{node.id}</div>
                     )}
                     <div className="card-meta">
+                      {node.type === 'file' && node.parentPattern && (
+                        <span className="card-badge" style={{ color: 'var(--dir)', borderColor: 'var(--dir)', fontFamily: 'monospace', fontSize: 9 }}>└ {node.parentPattern}</span>
+                      )}
                       {getPendingUnlock(node.id) && (
                         <span className="pending-badge" title={getPendingUnlock(node.id).reason || 'AI agent requests unlock'}>
                           {I.alert(10, '#F59E0B')} Unlock Requested
@@ -2099,6 +2273,14 @@ function CodeVault() {
                           {PLATFORM_DEFS[node.platform]?.icon} {PLATFORM_DEFS[node.platform]?.label}
                         </span>
                       )}
+                      {node.type === 'dir' && (
+                        <span className="card-badge" style={{ color: GROUP_META[node.group]?.color || 'var(--dir)', borderColor: (GROUP_META[node.group]?.color || 'var(--dir)') + '40', background: 'rgba(20,184,166,0.08)' }}>
+                          {GROUP_META[node.group]?.label || 'Directory'}
+                        </span>
+                      )}
+                      {node.type === 'dir' && node.note && node.note.startsWith('CRITICAL') && (
+                        <span className="card-badge" style={{ color: 'var(--locked)', borderColor: 'var(--locked)', fontWeight: 700 }}>CRITICAL</span>
+                      )}
                       {node.funcs && node.lines && (
                         <span className="meta-tag" style={{ color: 'var(--action)' }}>{node.lines} lines</span>
                       )}
@@ -2108,6 +2290,36 @@ function CodeVault() {
                         <span className="card-badge">{node.group}</span>
                       ) : null}
                     </div>
+                    {/* Inline Sub-Lock Row */}
+                    {(() => {
+                      const entry = locks[node.id] || {_default:{ui:'locked',logic:'locked',data:'locked'}};
+                      const sub = (activePlatform !== 'all' && entry[activePlatform]) ? entry[activePlatform] : (entry._default || {ui:'locked',logic:'locked',data:'locked'});
+                      const pendingInfo = getPendingUnlock(node.id);
+                      const needsUnlock = pendingInfo ? new Set((pendingInfo.layers||[]).map(l=>l.toLowerCase())) : null;
+                      const layers = [{key:'ui',label:'UI',icon:I.eye},{key:'logic',label:'Logic',icon:I.cpu},{key:'data',label:'Data',icon:I.database}];
+                      return (
+                        <div className="sub-locks" onClick={e => e.stopPropagation()}>
+                          {layers.map(l => {
+                            const isTarget = needsUnlock && needsUnlock.has(l.key);
+                            return (
+                              <div key={l.key} className="sub-lock-group" style={isTarget ? {background:'rgba(245,158,11,0.1)',borderRadius:6,padding:'2px 4px'} : undefined}>
+                                <span style={isTarget ? {color:'#F59E0B',display:'inline-flex',alignItems:'center'} : {display:'inline-flex',alignItems:'center'}}>{l.icon(10, isTarget ? '#F59E0B' : 'var(--text3)')}</span>
+                                {['locked','caution','open'].map(s => (
+                                  <button
+                                    key={s}
+                                    className={`sub-lock-btn${sub[l.key] === s ? ' active ' + s : ''}${isTarget && s === 'open' ? ' pending-highlight' : ''}`}
+                                    onClick={e => { e.stopPropagation(); updateLock(node.id, l.key, s); }}
+                                    title={isTarget && s === 'open' ? `⚠ AI requests: Click to unlock ${l.label}` : `${l.label}: ${s}`}
+                                  >
+                                    {s === 'locked' ? 'L' : s === 'caution' ? 'C' : 'O'}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -2230,20 +2442,22 @@ function CodeVault() {
                 {/* Lock Controls */}
                 <div className="detail-section">
                   <div className="detail-section-title">Lock State {activePlatform !== 'all' && <span style={{fontSize:'10px',padding:'1px 6px',borderRadius:3,background:'rgba(91,154,160,0.15)',color:'var(--accent)',fontWeight:600,marginLeft:6}}>{PLATFORM_DEFS[activePlatform]?.label}</span>}</div>
+                  {(() => { const pendingInfo = getPendingUnlock(selectedNode.id); const pendingLayerSet = pendingInfo ? new Set((pendingInfo.layers||[]).map(l=>l.toLowerCase())) : null; return (
                   <div className="lock-controls">
                     {['ui', 'logic', 'data'].map(layer => {
                       const entry = locks[selectedNode.id] || {_default:{ui:'locked',logic:'locked',data:'locked'}};
                       const sub = (activePlatform !== 'all' && entry[activePlatform]) ? entry[activePlatform] : (entry._default || {ui:'locked',logic:'locked',data:'locked'});
+                      const isTarget = pendingLayerSet && pendingLayerSet.has(layer);
                       return (
-                        <div key={layer} style={{ flex: 1 }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>
-                            {layer}
+                        <div key={layer} style={{ flex: 1, background: isTarget ? 'rgba(245,158,11,0.1)' : 'transparent', borderRadius: 6, padding: isTarget ? '4px' : 0 }}>
+                          <div style={{ fontSize: '11px', color: isTarget ? '#F59E0B' : 'var(--text2)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: isTarget ? '700' : '600' }}>
+                            {isTarget ? '⚠ ' : ''}{layer}
                           </div>
                           <div className="layer-lock-btns">
                             {['locked', 'caution', 'open'].map(state => (
                               <button
                                 key={state}
-                                className={`layer-lock-btn ${state}`}
+                                className={`layer-lock-btn ${state}${isTarget && state === 'open' ? ' pending-highlight' : ''}`}
                                 onClick={() => updateLock(selectedNode.id, layer, state)}
                                 style={{
                                   backgroundColor:
@@ -2253,10 +2467,12 @@ function CodeVault() {
                                   color:
                                     (sub[layer] || 'locked') === state ? '#fff' : 'var(--text2)',
                                   borderColor:
+                                    isTarget && state === 'open' ? '#F59E0B' :
                                     state === 'locked' ? 'var(--locked)' : state === 'caution' ? 'var(--caution)' : 'var(--open)',
                                   fontWeight:
                                     (sub[layer] || 'locked') === state ? '600' : '500'
                                 }}
+                                title={isTarget && state === 'open' ? `⚠ AI requests: Click to unlock ${layer.toUpperCase()}` : `${layer}: ${state}`}
                               >
                                 {state === 'locked' ? I.lock(12) : state === 'caution' ? I.alert(12) : I.check(12)}
                               </button>
@@ -2266,6 +2482,7 @@ function CodeVault() {
                       );
                     })}
                   </div>
+                  ); })()}
                 </div>
 
                 {/* Details */}

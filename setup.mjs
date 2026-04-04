@@ -130,6 +130,109 @@ function detectRoutePlatform(filePath, routePath, mobileStrategy) {
 }
 
 // Scan for native platform entries (Capacitor ios/ and android/ shells, RN native modules)
+// Auto-detect directory patterns that should be protected
+function scanDirectoryRules() {
+  const rules = [];
+  const seen = new Set();
+
+  const addRule = (pattern, name, group, platform, note) => {
+    if (seen.has(pattern)) return;
+    seen.add(pattern);
+    const id = 'dir-' + pattern.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    rules.push({ id, name, pattern, group, platform: platform || 'shared', note: note || '' });
+  };
+
+  // Component directories (src/components/**)
+  const componentsDir = path.join(cwd, 'src', 'components');
+  if (fs.existsSync(componentsDir)) {
+    const subdirs = fs.readdirSync(componentsDir, { withFileTypes: true }).filter(d => d.isDirectory());
+    subdirs.forEach(d => {
+      const label = d.name.charAt(0).toUpperCase() + d.name.slice(1).replace(/-/g, ' ') + ' Components';
+      addRule(`src/components/${d.name}/**`, label, 'dir-components', 'shared', `${label} directory`);
+    });
+    if (subdirs.length === 0) {
+      addRule('src/components/**', 'Components', 'dir-components', 'shared', 'Component directory');
+    }
+  }
+
+  // Library directories (src/lib/**)
+  const libDir = path.join(cwd, 'src', 'lib');
+  if (fs.existsSync(libDir)) {
+    const subdirs = fs.readdirSync(libDir, { withFileTypes: true }).filter(d => d.isDirectory());
+    subdirs.forEach(d => {
+      const label = d.name.charAt(0).toUpperCase() + d.name.slice(1).replace(/-/g, ' ') + ' Library';
+      const critical = ['encryption', 'security', 'auth', 'stripe', 'payment'].includes(d.name);
+      addRule(`src/lib/${d.name}/**`, label, 'dir-infra', 'shared', critical ? `CRITICAL — ${label}` : label);
+    });
+  }
+
+  // Type definitions
+  if (fs.existsSync(path.join(cwd, 'src', 'types'))) {
+    addRule('src/types/**', 'Type Definitions', 'dir-infra', 'shared', 'TypeScript types — cascades everywhere');
+  }
+
+  // Hooks
+  if (fs.existsSync(path.join(cwd, 'src', 'hooks'))) {
+    addRule('src/hooks/**', 'React Hooks', 'dir-infra', 'shared', 'Shared React hooks');
+  }
+
+  // Data/reference files
+  if (fs.existsSync(path.join(cwd, 'src', 'data'))) {
+    addRule('src/data/**', 'Reference Data', 'dir-infra', 'shared', 'Reference data files');
+  }
+
+  // Utils/helpers
+  if (fs.existsSync(path.join(cwd, 'src', 'utils'))) {
+    addRule('src/utils/**', 'Utilities', 'dir-infra', 'shared', 'Shared utility functions');
+  }
+
+  // Middleware
+  const middlewareFiles = ['src/middleware.ts', 'src/middleware.js', 'middleware.ts', 'middleware.js'];
+  for (const mw of middlewareFiles) {
+    if (fs.existsSync(path.join(cwd, mw))) {
+      addRule(mw, 'Middleware', 'dir-infra', 'backend', 'Auth/routing middleware');
+      break;
+    }
+  }
+
+  // Database migrations
+  const migrationDirs = ['supabase/migrations', 'prisma/migrations', 'drizzle', 'migrations', 'db/migrations'];
+  for (const dir of migrationDirs) {
+    if (fs.existsSync(path.join(cwd, dir))) {
+      addRule(`${dir}/**`, 'DB Migrations', 'dir-infra', 'backend', 'CRITICAL — Database migrations');
+    }
+  }
+
+  // Native shells
+  if (fs.existsSync(path.join(cwd, 'ios'))) {
+    addRule('ios/**', 'iOS Shell', 'dir-native', 'ios', 'iOS native shell');
+  }
+  if (fs.existsSync(path.join(cwd, 'android'))) {
+    addRule('android/**', 'Android Shell', 'dir-native', 'android', 'Android native shell');
+  }
+
+  // Config files
+  const configPatterns = [
+    ['capacitor.config.*', 'Capacitor Config', 'Mobile shell config'],
+    ['tailwind.config.*', 'Tailwind Config', 'Tailwind configuration'],
+    ['next.config.*', 'Next.js Config', 'Next.js configuration'],
+    ['vite.config.*', 'Vite Config', 'Vite configuration'],
+    ['tsconfig.*', 'TypeScript Config', 'TypeScript compiler config'],
+    ['.env*', 'Environment Variables', 'Environment variables'],
+    ['package.json', 'package.json', 'Dependencies and scripts'],
+    ['package-lock.json', 'package-lock.json', 'Dependency lockfile'],
+  ];
+  for (const [pattern, name, note] of configPatterns) {
+    // Check if any matching files exist
+    const matches = globSync(pattern, { cwd, dot: true });
+    if (matches.length > 0) {
+      addRule(pattern, name, 'dir-config', 'shared', note);
+    }
+  }
+
+  return rules;
+}
+
 function scanNativePlatforms() {
   const entries = [];
   const hasIos = fs.existsSync(path.join(cwd, 'ios'));
@@ -215,6 +318,10 @@ if (criticalLibs.length > 0) {
   console.log(`  + Found ${criticalLibs.length} critical library files`);
 }
 
+// Scan directory rules (auto-detected protected directories)
+const directoryRules = scanDirectoryRules();
+console.log(`  + Found ${directoryRules.length} directory rules`);
+
 // Generate output
 const output = `/**
  * CodeVault Data Configuration
@@ -230,7 +337,8 @@ window.CODEVAULT_DATA = ${JSON.stringify({
   routes,
   apiRoutes,
   tables,
-  serverActions
+  serverActions,
+  directoryRules
 }, null, 2)};
 `;
 
@@ -310,12 +418,27 @@ if (syncMode) {
       }
     });
 
+    // Sync directory rules — merge new patterns, preserve existing lock states
+    if (!existing.directoryRules) existing.directoryRules = [];
+    const existingPatterns = new Set(existing.directoryRules.map(r => r.pattern));
+    directoryRules.forEach(d => {
+      if (!existingPatterns.has(d.pattern)) {
+        existing.directoryRules.push({ pattern: d.pattern, ui: 'locked', logic: 'locked', data: 'locked', note: d.note || '' });
+        added++;
+        console.log(`  + NEW directory rule: ${d.pattern}`);
+      } else {
+        preserved++;
+      }
+    });
+
     // Detect stale entries (in config but not in scan)
+    const allScannedDirPatterns = new Set(directoryRules.map(d => d.pattern));
     const staleRoutes = Object.keys(existing.routes || {}).filter(id => !allScannedRoutes.has(id));
     const staleApis = Object.keys(existing.apiRoutes || {}).filter(id => !allScannedApis.has(id));
     const staleTables = Object.keys(existing.tables || {}).filter(id => !allScannedTables.has(id));
     const staleActions = Object.keys(existing.serverActions || {}).filter(id => !allScannedActions.has(id));
-    const totalStale = staleRoutes.length + staleApis.length + staleTables.length + staleActions.length;
+    const staleDirs = (existing.directoryRules || []).filter(r => !allScannedDirPatterns.has(r.pattern));
+    const totalStale = staleRoutes.length + staleApis.length + staleTables.length + staleActions.length + staleDirs.length;
 
     if (totalStale > 0) {
       console.log(`\n  [!] ${totalStale} stale entries detected (files no longer exist in codebase):`);
@@ -323,6 +446,7 @@ if (syncMode) {
       staleApis.forEach(id => console.log(`    - api: ${id}`));
       staleTables.forEach(id => console.log(`    - table: ${id}`));
       staleActions.forEach(id => console.log(`    - action: ${id}`));
+      staleDirs.forEach(d => console.log(`    - dir: ${d.pattern}`));
       console.log(`    → Stale entries are preserved (not auto-deleted). Remove manually if desired.`);
     }
 
@@ -388,12 +512,13 @@ function writeFreshLockConfig() {
     tables: {},
     apiRoutes: {},
     _auditLog: [],
-    directoryRules: [
-      { pattern: 'src/components/ui/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Shared UI components' },
-      { pattern: 'src/lib/**', ui: 'locked', logic: 'locked', data: 'locked', note: 'Core library code' },
-      { pattern: '*.config.*', ui: 'locked', logic: 'locked', data: 'locked', note: 'Config files' },
-      { pattern: '.env*', ui: 'locked', logic: 'locked', data: 'locked', note: 'Environment variables' }
-    ]
+    directoryRules: directoryRules.map(d => ({
+      pattern: d.pattern,
+      ui: 'locked',
+      logic: 'locked',
+      data: 'locked',
+      note: d.note || ''
+    }))
   };
 
   routes.forEach(r => { lockConfig.routes[r.id] = { path: r.path, name: r.name, platform: r.platform || 'web', ui: 'locked', logic: 'locked', data: 'locked' }; });
